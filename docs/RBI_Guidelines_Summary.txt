@@ -1,0 +1,76 @@
+RBI Lending Guidelines Summary
+================================
+A RAG-ready reference for AI-powered credit lending systems in India
+
+
+ELIGIBILITY & FAIRNESS
+-----------------------
+- Lenders must apply consistent, objective eligibility criteria to all applicants.
+- Loan decisions must not be influenced by caste, religion, gender, region, or community.
+- The same product must be offered under the same terms to applicants with similar risk profiles.
+- Eligibility criteria must be defined before assessment begins — not changed mid-process to exclude specific applicants.
+- If an application is rejected, the applicant must be told the primary reason in plain language.
+- Lenders must not use proxies (such as zip code or name) that indirectly discriminate against protected groups.
+
+
+TRANSPARENCY & DISCLOSURE
+--------------------------
+- Before loan disbursement, the borrower must receive a clear written summary of: loan amount, interest rate (annualized), tenure, EMI, and all fees.
+- All charges — processing fee, prepayment penalty, late payment fee — must be disclosed upfront, not buried in fine print.
+- The interest calculation method (flat vs. reducing balance) must be clearly explained.
+- Any change in interest rate or charges during the loan period must be communicated to the borrower in advance.
+- The loan sanction letter must state all key terms before the borrower accepts.
+- Total cost of credit (not just EMI) must be made visible so borrowers can make informed decisions.
+
+
+DATA PRIVACY & CONSENT
+------------------------
+- Borrower data can only be collected for a stated, specific purpose related to the loan.
+- Explicit consent must be obtained before accessing personal data such as bank statements, phone contacts, location, or social profiles.
+- Borrowers must be told what data is collected, how it is stored, and who it is shared with.
+- Lenders must not use data collected for one purpose (e.g., KYC) for a different purpose (e.g., marketing) without fresh consent.
+- Borrowers have the right to request deletion of their data after loan closure, subject to regulatory retention requirements.
+- Data must not be shared with third parties without the borrower's knowledge and consent.
+
+
+RESPONSIBLE CREDIT ASSESSMENT
+-------------------------------
+- Loan amounts must be based on the borrower's genuine repayment capacity, not just their willingness to borrow.
+- Income, existing liabilities, and credit history must all be considered before approving a loan.
+- Lenders must not push borrowers into over-leveraging by offering more credit than they can reasonably repay.
+- Creditworthiness assessment must use verified data — not assumptions or unverified self-declarations alone.
+- For first-time or thin-file borrowers, alternative data (e.g., utility payments, rent history) may supplement traditional credit scores.
+- Loan products must be suitable for the borrower's financial profile — mis-selling high-cost credit to low-income borrowers is not acceptable.
+
+
+RECOVERY & CUSTOMER TREATMENT
+-------------------------------
+- Recovery agents must not use abusive language, threats, or harassment of any kind.
+- Borrowers can only be contacted between 8 AM and 7 PM, and not repeatedly in a manner that causes distress.
+- Recovery calls must not be made to references or family members to pressure the borrower.
+- Borrowers facing genuine hardship must be given the option to discuss restructuring or repayment plans.
+- Any recovery action must follow the process stated in the loan agreement — no surprise tactics.
+- Dignity of the borrower must be maintained at every stage of recovery.
+
+
+GRIEVANCE REDRESSAL
+--------------------
+- Every lender must have a publicly visible grievance redressal mechanism with a named officer responsible.
+- Borrowers must receive an acknowledgment of their complaint within a defined timeframe (typically 1–3 working days).
+- Complaints must be resolved within 30 days; unresolved complaints can be escalated to the RBI Ombudsman.
+- The grievance process must be accessible — not hidden, not overly complex.
+- Borrowers must be informed about their right to escalate to the RBI Banking Ombudsman if the lender does not resolve their issue.
+- Retaliation against a borrower for raising a complaint is prohibited.
+
+
+AI DECISION SUPPORT NOTES
+---------------------------
+- AI models used in credit decisions must be regularly audited for bias across gender, geography, income group, and community.
+- Every AI-generated rejection or adverse decision must be explainable — the system must be able to state which factors drove the outcome.
+- Borderline applicants (scores near the approval/rejection threshold) must be flagged for mandatory human review before a final decision is made.
+- The AI system must not use features that act as proxies for protected characteristics (e.g., neighborhood as a proxy for caste or religion).
+- Model outputs are decision-support tools — final credit decisions carry human accountability and cannot be fully delegated to an automated system.
+
+
+---
+This is a simplified academic summary of public RBI-aligned principles.

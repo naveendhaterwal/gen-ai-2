@@ -1,0 +1,134 @@
+Internal Lending Policy (Prototype)
+=====================================
+Simulated Retail Lending Policy — Personal & Home Loans
+Indian Banking Context | Academic Prototype
+
+
+CREDIT SCORE RULES
+-------------------
+- 750 and above: Strong profile. Eligible for best available interest rate. Fast-track approval for standard loan amounts.
+- 700–749: Good profile. Eligible for approval with standard processing. Minor supporting documents may be requested.
+- 650–699: Moderate risk. Mandatory manual review. Approval possible with co-applicant, collateral, or reduced loan amount.
+- 600–649: High risk. Approval only under exceptional circumstances with strong compensating factors (e.g., large down payment, high income, existing relationship with bank).
+- Below 600: Reject. Application does not meet minimum creditworthiness threshold.
+- No credit history (NTC): Route to manual review. Evaluate based on income stability, banking behavior, and employment profile.
+
+
+INCOME RULES
+-------------
+Personal Loans:
+- Minimum net monthly income: ₹20,000 for salaried applicants in Tier-2/3 cities.
+- Minimum net monthly income: ₹30,000 for salaried applicants in metro cities.
+- Salary must be received via bank transfer (not cash) for at least the last 3 months.
+- Salary account must show consistent credits — irregular or declining salary patterns trigger manual review.
+- At least 6 months of continuous employment with current employer is required.
+
+Home Loans:
+- Minimum net monthly income: ₹35,000 for Tier-2/3 cities; ₹50,000 for metros.
+- Co-applicant income can be clubbed if the co-applicant is a spouse, parent, or earning child.
+
+Self-Employed Applicants:
+- Minimum 2 years of ITR (Income Tax Returns) filing required.
+- Business vintage of at least 3 years preferred; minimum 2 years acceptable.
+- Latest 2 years of audited financials or GST returns required for income verification.
+- Income considered is average net profit over last 2 ITR years, not gross revenue.
+- Irregular or significantly declining income over the 2-year period triggers high-risk flag.
+
+
+DEBT BURDEN RULES
+------------------
+- FOIR (Fixed Obligation to Income Ratio) must not exceed 50% for salaried applicants.
+- FOIR must not exceed 55% for self-employed applicants given income variability.
+- FOIR calculation includes: all active EMIs + proposed new EMI, divided by net monthly income.
+- Applicants with FOIR between 50–60% may be approved with a reduced loan amount that brings FOIR to 50% or below.
+- Applicants with FOIR above 60% are rejected unless a strong co-applicant brings the blended FOIR below the threshold.
+- More than 3 active open loans at time of application is a red flag. Route to manual review regardless of FOIR.
+- Any EMI default in the past 12 months — even a single 30-day delay — is flagged and requires explanation.
+- Credit card utilization consistently above 80% of limit is treated as a debt stress indicator.
+
+
+LOAN AMOUNT RULES
+------------------
+Small Ticket (Personal Loans up to ₹2,00,000):
+- Fast-track processing if credit score is 700+, FOIR is under 45%, and income is verified.
+- Minimal documentation: last 3 months salary slips, 6-month bank statement, KYC.
+- Decision target: 24–48 hours.
+
+Medium Ticket (₹2,00,001 to ₹15,00,000):
+- Standard review process. Full income and employment verification required.
+- Bank statement analysis for last 12 months.
+- Decision target: 3–5 working days.
+
+High Ticket (Above ₹15,00,000 — including home loans):
+- Enhanced due diligence. Physical or video verification of residence and employment may be required.
+- Property legal and technical verification mandatory for home loans.
+- Credit committee review for amounts above ₹50,00,000.
+- Decision target: 7–15 working days.
+
+
+EMPLOYMENT RULES
+-----------------
+Salaried Applicants:
+- Permanent employees of central/state government, PSUs, and large private companies are lowest risk.
+- Employees of registered SMEs are acceptable with slightly higher income thresholds.
+- Contract, probationary, or gig workers require at least 12 months of documented stable income before eligibility.
+- Minimum 6 months with current employer. For home loans, minimum 1 year preferred.
+- If applicant has changed jobs in the last 6 months, continuity of income must be demonstrated across employers.
+
+Self-Employed Applicants:
+- Sole proprietors, partners, and private limited company directors are all eligible.
+- Business must be registered and GST-compliant (if turnover exceeds threshold).
+- Minimum 2 years business vintage for personal loans; 3 years for home loans.
+- Seasonal businesses must show consistent annualized income across at least 2 filing years.
+
+
+FRAUD & RED FLAG RULES
+-----------------------
+- Document mismatch: Name, address, or income figures inconsistent across PAN, Aadhaar, ITR, and bank statements — reject or escalate immediately.
+- Loan application surge: More than 3 hard credit inquiries in the last 90 days from different lenders — high-risk flag, manual review required.
+- Unverifiable income: Cash salary without bank evidence, inflated ITR with low banking activity, sudden income spike in the last filing year — reject or deep review.
+- Address inconsistency: Residential address on application does not match KYC documents without a valid explanation — flag for verification.
+- Profile mismatch: Stated occupation and income level inconsistent with declared lifestyle or loan purpose — flag for review.
+- Negative banking behavior: Frequent overdrafts, returned cheques, or minimal savings despite stated income — treat as stress signal.
+- Known NPA association: Applicant previously classified as Non-Performing Asset at any institution — automatic reject unless fully settled with NOC and 2-year clean history post-settlement.
+
+
+FINAL DECISION MATRIX
+----------------------
+APPROVE:
+- Credit score 700+, FOIR under 50%, verified income, clean repayment history, no red flags.
+
+APPROVE WITH REDUCED AMOUNT:
+- Credit score 650–699, or FOIR between 50–60%, or minor documentation gaps.
+- Reduce loan amount to bring FOIR to 45–50% and re-evaluate.
+
+MANUAL REVIEW:
+- NTC (no credit history) applicants.
+- Borderline scores (650–699) with mixed signals.
+- Self-employed with complex income structure.
+- Any red flag triggered that does not meet automatic reject criteria.
+- Co-applicant cases where primary applicant does not independently qualify.
+
+REJECT:
+- Credit score below 600.
+- FOIR above 60% with no co-applicant solution.
+- Active NPA status or unsettled write-off history.
+- Fraud or document falsification detected.
+- Income entirely unverifiable.
+- More than 3 active defaults in bureau report.
+
+
+AI RECOMMENDATION NOTES
+------------------------
+1. Never generate an Approve decision when any fraud red flag is active — escalate to manual review regardless of credit score or income strength.
+2. Always state the top 2–3 factors that drove the recommendation, so a human reviewer can quickly validate or override.
+3. When FOIR is the main barrier, calculate and suggest the maximum loan amount that would bring FOIR to exactly 50% — do not just reject.
+4. Treat NTC applicants as a separate path — do not score them the same way as applicants with a bureau history; use income and banking behavior as primary signals.
+5. Do not approve high-ticket loans (above ₹15 lakh) based on AI output alone — always route to human review with your analysis as input.
+6. Flag any case where income in bank statements and income in ITR differ by more than 30% — do not assume either figure is correct.
+7. When co-applicant income is being clubbed, verify that the co-applicant independently meets minimum income criteria before including their income in FOIR calculations.
+8. Confidence score must be included with every recommendation — low-confidence outputs (below 70%) must be automatically routed to manual review, not pushed to a decision.
+
+
+---
+Prototype internal policy for academic demonstration only.
