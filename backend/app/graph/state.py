@@ -1,0 +1,103 @@
+"""
+LangGraph State Definition
+Defines the state that flows through the multi-agent workflow.
+"""
+
+from typing import Dict, List, Optional, Any
+from dataclasses import dataclass, field
+from app.schemas.borrower import BorrowerInput, BorrowerProfile
+from app.schemas.response import RiskLevel, RecommendationType
+
+
+@dataclass
+class WorkflowState:
+    """
+    Complete state that flows through the LangGraph workflow.
+    Each agent reads from and writes to this state.
+    """
+    
+    # ========== INPUT ==========
+    # Original borrower input from frontend
+    borrower_input: Optional[BorrowerInput] = None
+    
+    # ========== CALCULATED METRICS ==========
+    # Financial metrics calculated in the first step
+    monthly_income: float = 0.0
+    existing_emi_monthly: float = 0.0
+    loan_amount_requested: float = 0.0
+    loan_tenure_months: int = 60
+    
+    # Calculated ratios
+    foir: float = 0.0  # Fixed Obligation to Income Ratio
+    dti: float = 0.0   # Debt-to-Income Ratio
+    proposed_emi: float = 0.0  # Proposed EMI for new loan
+    total_emi_after_loan: float = 0.0
+    
+    # ========== ML PREDICTION ==========
+    # From ML Service
+    ml_risk_level: Optional[RiskLevel] = None
+    ml_risk_score: float = 0.0
+    ml_confidence: float = 0.0
+    
+    # ========== RISK ANALYSIS AGENT OUTPUT ==========
+    # From Risk Analysis Agent (LLM)
+    risk_analysis: Dict[str, Any] = field(default_factory=dict)
+    # Expected keys:
+    # - top_risk_factors: List[str]
+    # - positive_factors: List[str]
+    # - confidence_score: float
+    
+    # ========== POLICY RETRIEVAL AGENT OUTPUT ==========
+    # From Policy Retrieval Agent (RAG)
+    policy_matches: List[Dict[str, str]] = field(default_factory=list)
+    # Each item:
+    # {
+    #   "rule_name": str,
+    #   "rule_text": str,
+    #   "status": "Compliant" | "Borderline" | "Violated"
+    # }
+    
+    policy_violations: int = 0
+    policy_compliances: int = 0
+    
+    # ========== DECISION AGENT OUTPUT ==========
+    # From Lending Decision Agent (LLM)
+    final_decision: Dict[str, Any] = field(default_factory=dict)
+    # Expected keys:
+    # - recommendation: RecommendationType
+    # - primary_reason: str
+    # - secondary_reasons: List[str]
+    # - suggested_action: str
+    # - manual_review_needed: bool
+    
+    # ========== TRACKING ==========
+    # For debugging and monitoring
+    request_id: str = ""
+    errors: List[str] = field(default_factory=list)
+    step_completed: str = ""
+    
+    def add_error(self, error_message: str):
+        """Add an error message to the state"""
+        self.errors.append(error_message)
+    
+    def to_dict(self) -> dict:
+        """Convert state to dictionary (for serialization)"""
+        return {
+            "request_id": self.request_id,
+            "borrower_input": self.borrower_input.dict() if self.borrower_input else None,
+            "foir": self.foir,
+            "dti": self.dti,
+            "proposed_emi": self.proposed_emi,
+            "ml_risk_level": self.ml_risk_level.value if self.ml_risk_level else None,
+            "ml_risk_score": self.ml_risk_score,
+            "ml_confidence": self.ml_confidence,
+            "risk_analysis": self.risk_analysis,
+            "policy_matches": self.policy_matches,
+            "final_decision": self.final_decision,
+            "errors": self.errors
+        }
+
+
+def create_empty_state() -> WorkflowState:
+    """Create a new empty state"""
+    return WorkflowState()
