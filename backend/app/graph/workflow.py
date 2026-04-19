@@ -104,14 +104,12 @@ def node_input_processing(state: WorkflowState) -> WorkflowState:
         
         logger.info(f"   FOIR: {state.foir*100:.2f}%")
         
-        # ========== CALCULATE DTI (Debt-to-Income Ratio) ==========
-        # DTI = (Existing Loans + Requested Loan) / Monthly Income
-        # Banks prefer DTI < 40%
-        
         total_debt = existing_loans + loan_amount
         
         if monthly_income > 0:
-            dti = (total_debt / monthly_income) * 100
+            # Standard DTI calculation: Total Debt / Annual Income
+            annual_income = monthly_income * 12
+            dti = (total_debt / annual_income) * 100
             state.dti = round(dti / 100, 4)  # Store as decimal
         else:
             state.dti = 0.0
