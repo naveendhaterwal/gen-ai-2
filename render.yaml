@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: credit-risk-ai-backend
+    runtime: python
+    region: singapore   # closest to India
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn -w 2 -k uvicorn.workers.UvicornWorker app.main:app --bind 0.0.0.0:$PORT --timeout 120
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false          # you will paste this manually in Render dashboard
+      - key: QDRANT_URL
+        sync: false
+      - key: QDRANT_API_KEY
+        sync: false
+      - key: STRICT_NO_FALLBACKS
+        value: "True"
+      - key: CORS_ORIGINS
+        sync: false          # paste your Vercel URL here after deploying frontend
+      - key: DEBUG
+        value: "False"
+      - key: PORT
+        value: "10000"       # Render's default PORT
+    healthCheckPath: /health
