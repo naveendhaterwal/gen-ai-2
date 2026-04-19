@@ -62,4 +62,3 @@ Once both are deployed:
 
 ---
 
-**Congratulations! Your Credit Risk AI is now live!**
