@@ -16,6 +16,7 @@ from langgraph.graph import StateGraph, END
 from app.graph.state import WorkflowState
 from app.schemas.borrower import BorrowerInput, BorrowerProfile
 from app.schemas.response import RiskLevel
+from app.core.config import settings
 from app.services.ml_service import ml_service
 from app.services.groq_service import groq_service, risk_agent, decision_agent
 from app.services.rag_service import rag_service
@@ -38,6 +39,39 @@ def _normalize_workflow_state(raw_state: Any) -> WorkflowState:
     raise TypeError(f"Unexpected workflow state type: {type(raw_state)}")
 
 
+def _append_trace(
+    state: WorkflowState,
+    *,
+    step: str,
+    node: str,
+    status: str,
+    started_at: datetime,
+    input_data: Dict[str, Any],
+    output_data: Dict[str, Any],
+    model: str,
+    source: str,
+    note: str = "",
+) -> None:
+    """Append one normalized workflow trace event for frontend timeline rendering."""
+    ended_at = datetime.utcnow()
+    duration_ms = max(0, int((ended_at - started_at).total_seconds() * 1000))
+    state.workflow_trace.append(
+        {
+            "step": step,
+            "node": node,
+            "status": status,
+            "started_at": started_at.isoformat() + "Z",
+            "ended_at": ended_at.isoformat() + "Z",
+            "duration_ms": duration_ms,
+            "model": model,
+            "source": source,
+            "note": note,
+            "input": input_data,
+            "output": output_data,
+        }
+    )
+
+
 # ============================================================================
 # NODE: INPUT PROCESSING & CALCULATIONS
 # ============================================================================
@@ -53,6 +87,7 @@ def node_input_processing(state: WorkflowState) -> WorkflowState:
     """
     
     logger.info("📥 Node: Input Processing")
+    started_at = datetime.utcnow()
     
     try:
         borrower = state.borrower_input
@@ -137,6 +172,31 @@ def node_input_processing(state: WorkflowState) -> WorkflowState:
         # Store in state (we'll need this for ML service)
         state.step_completed = "input_processing"
         logger.info("✓ Input processing complete")
+
+        _append_trace(
+            state,
+            step="input_processing",
+            node="Input Processing",
+            status="completed",
+            started_at=started_at,
+            model="financial_formula_engine_v1",
+            source="backend",
+            note="EMI, FOIR, and DTI computed from borrower input.",
+            input_data={
+                "monthly_income": monthly_income,
+                "existing_emi_monthly": existing_emi,
+                "loan_amount_requested": loan_amount,
+                "loan_tenure_months": tenure_months,
+                "existing_loan_amount": existing_loans,
+                "annual_rate": annual_rate,
+            },
+            output_data={
+                "proposed_emi": state.proposed_emi,
+                "total_emi_after_loan": state.total_emi_after_loan,
+                "foir": state.foir,
+                "dti": state.dti,
+            },
+        )
         
         return state
         
@@ -144,6 +204,18 @@ def node_input_processing(state: WorkflowState) -> WorkflowState:
         logger.error(f"❌ Error in input processing: {str(e)}")
         state.add_error(f"Input processing failed: {str(e)}")
         state.step_completed = "input_processing_failed"
+        _append_trace(
+            state,
+            step="input_processing",
+            node="Input Processing",
+            status="failed",
+            started_at=started_at,
+            model="financial_formula_engine_v1",
+            source="backend",
+            note=str(e),
+            input_data={},
+            output_data={"error": str(e)},
+        )
         return state
 
 
@@ -157,6 +229,7 @@ def node_ml_prediction(state: WorkflowState) -> WorkflowState:
     """
     
     logger.info("🤖 Node: ML Prediction")
+    started_at = datetime.utcnow()
     
     try:
         borrower = state.borrower_input
@@ -180,12 +253,13 @@ def node_ml_prediction(state: WorkflowState) -> WorkflowState:
         )
         
         # Get ML prediction
-        risk_level_str, risk_score, confidence = ml_service.predict_risk(borrower_profile)
+        risk_level_str, risk_score, confidence, score_breakdown = ml_service.predict_risk(borrower_profile)
         
         # Convert to enum
         state.ml_risk_level = RiskLevel(risk_level_str)
         state.ml_risk_score = round(risk_score, 2)
         state.ml_confidence = round(confidence, 3)
+        state.score_breakdown = score_breakdown
         
         logger.info(f"   Risk Level: {state.ml_risk_level.value}")
         logger.info(f"   Risk Score: {state.ml_risk_score}")
@@ -193,6 +267,31 @@ def node_ml_prediction(state: WorkflowState) -> WorkflowState:
         
         state.step_completed = "ml_prediction"
         logger.info("✓ ML prediction complete")
+
+        _append_trace(
+            state,
+            step="ml_prediction",
+            node="ML Prediction",
+            status="completed",
+            started_at=started_at,
+            model=settings.ML_MODEL_PATH,
+            source=str(score_breakdown.get("method", "unknown")),
+            note="Risk score computed by ML pipeline.",
+            input_data={
+                "credit_score": borrower.credit_score,
+                "employment_type": borrower.employment_type,
+                "foir": state.foir,
+                "dti": state.dti,
+                "loan_amount_requested": state.loan_amount_requested,
+                "monthly_income": state.monthly_income,
+            },
+            output_data={
+                "risk_level": state.ml_risk_level.value,
+                "risk_score": state.ml_risk_score,
+                "confidence": state.ml_confidence,
+                "score_breakdown": state.score_breakdown,
+            },
+        )
         
         return state
         
@@ -200,6 +299,18 @@ def node_ml_prediction(state: WorkflowState) -> WorkflowState:
         logger.error(f"❌ Error in ML prediction: {str(e)}")
         state.add_error(f"ML prediction failed: {str(e)}")
         state.step_completed = "ml_prediction_failed"
+        _append_trace(
+            state,
+            step="ml_prediction",
+            node="ML Prediction",
+            status="failed",
+            started_at=started_at,
+            model=settings.ML_MODEL_PATH,
+            source="ml_service",
+            note=str(e),
+            input_data={},
+            output_data={"error": str(e)},
+        )
         return state
 
 
@@ -214,6 +325,7 @@ def node_risk_analysis(state: WorkflowState) -> WorkflowState:
     """
     
     logger.info("🔍 Node: Risk Analysis Agent")
+    started_at = datetime.utcnow()
     
     try:
         borrower = state.borrower_input
@@ -231,19 +343,38 @@ def node_risk_analysis(state: WorkflowState) -> WorkflowState:
         }
         
         # Call the risk analysis agent
-        analysis = risk_agent.analyze(
+        analysis, interaction = risk_agent.analyze(
             borrower_data=borrower_data,
             risk_score=state.ml_risk_score,
             risk_level=state.ml_risk_level.value if state.ml_risk_level else "Unknown"
         )
         
         state.risk_analysis = analysis
+        state.agent_interactions.append(interaction)
         
         logger.info(f"   Top Risk Factors: {analysis.get('top_risk_factors', [])}")
         logger.info(f"   Positive Factors: {analysis.get('positive_factors', [])}")
         
         state.step_completed = "risk_analysis"
         logger.info("✓ Risk analysis complete")
+
+        _append_trace(
+            state,
+            step="risk_analysis",
+            node="Risk Analysis Agent",
+            status="completed",
+            started_at=started_at,
+            model=settings.GROQ_MODEL,
+            source=str(analysis.get("agent_source", "unknown")),
+            note="LLM analyzed risk factors from borrower and ML context.",
+            input_data=borrower_data,
+            output_data={
+                "top_risk_factors": analysis.get("top_risk_factors", []),
+                "positive_factors": analysis.get("positive_factors", []),
+                "confidence_score": analysis.get("confidence_score"),
+                "warnings": analysis.get("warnings", []),
+            },
+        )
         
         return state
         
@@ -251,6 +382,18 @@ def node_risk_analysis(state: WorkflowState) -> WorkflowState:
         logger.error(f"❌ Error in risk analysis: {str(e)}")
         state.add_error(f"Risk analysis failed: {str(e)}")
         state.step_completed = "risk_analysis_failed"
+        _append_trace(
+            state,
+            step="risk_analysis",
+            node="Risk Analysis Agent",
+            status="failed",
+            started_at=started_at,
+            model=settings.GROQ_MODEL,
+            source="groq",
+            note=str(e),
+            input_data={},
+            output_data={"error": str(e)},
+        )
         return state
 
 
@@ -264,6 +407,7 @@ def node_policy_retrieval(state: WorkflowState) -> WorkflowState:
     """
     
     logger.info("📋 Node: Policy Retrieval")
+    started_at = datetime.utcnow()
     
     try:
         borrower = state.borrower_input
@@ -288,6 +432,18 @@ def node_policy_retrieval(state: WorkflowState) -> WorkflowState:
         state.policy_violations = violations
         state.policy_compliances = compliances
 
+        # Log policy retrieval interaction
+        state.agent_interactions.append({
+            "agent": "Policy Retrieval Agent",
+            "prompt": f"Retrieving policies for borrower with credit score {borrower.credit_score}, FOIR {state.foir*100:.1f}%, and loan amount {state.loan_amount_requested}.",
+            "response": f"Retrieved {len(policies)} matching policies. Detected {violations} violations and {compliances} compliances.",
+            "metadata": {
+                "violations": violations,
+                "compliances": compliances,
+                "rules_checked": len(policies)
+            }
+        })
+
         for warning in retrieval_result.get("warnings", []):
             state.add_error(warning)
         
@@ -296,6 +452,25 @@ def node_policy_retrieval(state: WorkflowState) -> WorkflowState:
         
         state.step_completed = "policy_retrieval"
         logger.info("✓ Policy retrieval complete")
+
+        _append_trace(
+            state,
+            step="policy_retrieval",
+            node="Policy Retrieval Agent",
+            status="completed",
+            started_at=started_at,
+            model="qdrant_lexical_retrieval",
+            source=str(retrieval_result.get("source", "unknown")),
+            note="Retrieved and classified policies against borrower metrics.",
+            input_data=borrower_context,
+            output_data={
+                "rules_checked": len(policies),
+                "violations": violations,
+                "compliances": compliances,
+                "policies": policies,
+                "warnings": retrieval_result.get("warnings", []),
+            },
+        )
         
         return state
         
@@ -303,6 +478,18 @@ def node_policy_retrieval(state: WorkflowState) -> WorkflowState:
         logger.error(f"❌ Error in policy retrieval: {str(e)}")
         state.add_error(f"Policy retrieval failed: {str(e)}")
         state.step_completed = "policy_retrieval_failed"
+        _append_trace(
+            state,
+            step="policy_retrieval",
+            node="Policy Retrieval Agent",
+            status="failed",
+            started_at=started_at,
+            model="qdrant_lexical_retrieval",
+            source="rag_service",
+            note=str(e),
+            input_data={},
+            output_data={"error": str(e)},
+        )
         return state
 
 
@@ -317,6 +504,7 @@ def node_lending_decision(state: WorkflowState) -> WorkflowState:
     """
     
     logger.info("⚖️ Node: Lending Decision Agent")
+    started_at = datetime.utcnow()
     
     try:
         borrower = state.borrower_input
@@ -334,19 +522,44 @@ def node_lending_decision(state: WorkflowState) -> WorkflowState:
         }
         
         # Call decision agent
-        decision = decision_agent.decide(
+        decision, interaction = decision_agent.decide(
             risk_analysis=state.risk_analysis,
             policy_matches=state.policy_matches,
             borrower_data=borrower_data
         )
         
         state.final_decision = decision
+        state.agent_interactions.append(interaction)
         
         logger.info(f"   Recommendation: {decision.get('recommendation')}")
         logger.info(f"   Reason: {decision.get('primary_reason')}")
         
         state.step_completed = "lending_decision"
         logger.info("✓ Lending decision complete")
+
+        _append_trace(
+            state,
+            step="lending_decision",
+            node="Lending Decision Agent",
+            status="completed",
+            started_at=started_at,
+            model=settings.GROQ_MODEL,
+            source=str(decision.get("agent_source", "unknown")),
+            note="Final recommendation generated from risk and policy context.",
+            input_data={
+                "risk_analysis": state.risk_analysis,
+                "policy_matches": state.policy_matches,
+                "borrower_context": borrower_data,
+            },
+            output_data={
+                "recommendation": decision.get("recommendation"),
+                "primary_reason": decision.get("primary_reason"),
+                "secondary_reasons": decision.get("secondary_reasons", []),
+                "suggested_action": decision.get("suggested_action"),
+                "manual_review_needed": decision.get("manual_review_needed"),
+                "warnings": decision.get("warnings", []),
+            },
+        )
         
         return state
         
@@ -354,6 +567,18 @@ def node_lending_decision(state: WorkflowState) -> WorkflowState:
         logger.error(f"❌ Error in lending decision: {str(e)}")
         state.add_error(f"Lending decision failed: {str(e)}")
         state.step_completed = "lending_decision_failed"
+        _append_trace(
+            state,
+            step="lending_decision",
+            node="Lending Decision Agent",
+            status="failed",
+            started_at=started_at,
+            model=settings.GROQ_MODEL,
+            source="groq",
+            note=str(e),
+            input_data={},
+            output_data={"error": str(e)},
+        )
         return state
 
 

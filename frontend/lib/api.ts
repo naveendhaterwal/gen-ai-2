@@ -27,6 +27,29 @@ export interface PolicyMatch {
   score?: number;
 }
 
+export interface AgentInteraction {
+  agent: string;
+  prompt: string;
+  response: string;
+  system_prompt?: string;
+  metadata?: any;
+  error?: string;
+}
+
+export interface WorkflowTraceStep {
+  step: string;
+  node: string;
+  status: "completed" | "failed";
+  started_at: string;
+  ended_at: string;
+  duration_ms: number;
+  model: string;
+  source: string;
+  note?: string;
+  input: Record<string, any>;
+  output: Record<string, any>;
+}
+
 export interface PredictionResponse {
   borrower_name: string;
   request_id: string;
@@ -45,6 +68,9 @@ export interface PredictionResponse {
   foir: number;
   dti: number;
   proposed_emi: number;
+  agent_interactions: AgentInteraction[];
+  score_breakdown: Record<string, any>;
+  workflow_trace: WorkflowTraceStep[];
 }
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
@@ -80,7 +106,7 @@ export async function predictRisk(data: BorrowerInput): Promise<PredictionRespon
   return response.json();
 }
 
-export async function getReport(requestId: string): Promise<any> {
+export async function getReport(requestId: string): Promise<PredictionResponse> {
   const response = await fetch(`${API_BASE_URL}/report/${requestId}`);
   if (!response.ok) {
     throw new Error("Failed to fetch report");

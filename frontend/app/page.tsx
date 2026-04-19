@@ -5,17 +5,17 @@ import { motion, AnimatePresence } from "framer-motion";
 import Hero from "@/components/Hero";
 import BorrowerForm from "@/components/BorrowerForm";
 import Loader from "@/components/Loader";
-import ResultsDashboard from "@/components/ResultsDashboard";
 import ToolWindow from "@/components/ToolWindow";
 import { FloatingRiskCard, FloatingAnalysisCard } from "@/components/FloatingCards";
-import { BorrowerInput, predictRisk, PredictionResponse } from "@/lib/api";
-import { ChevronLeft, RefreshCcw } from "lucide-react";
+import { BorrowerInput, predictRisk } from "@/lib/api";
+import { ChevronLeft } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 type WorkflowState = "IDLE" | "LOADING" | "RESULTS" | "ERROR";
 
 export default function Home() {
+  const router = useRouter();
   const [state, setState] = useState<WorkflowState>("IDLE");
-  const [result, setResult] = useState<PredictionResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   
   const toolRef = useRef<HTMLDivElement>(null);
@@ -31,8 +31,7 @@ export default function Home() {
     
     try {
       const response = await predictRisk(data);
-      setResult(response);
-      setState("RESULTS");
+      router.push(`/results/${response.request_id}`);
     } catch (err: any) {
       console.error("Prediction failed:", err);
       setError(err.message || "An unexpected error occurred.");
@@ -41,7 +40,6 @@ export default function Home() {
   };
 
   const reset = () => {
-    setResult(null);
     setError(null);
     setState("IDLE");
     scrollToTool();
@@ -60,10 +58,10 @@ export default function Home() {
         <div className="relative">
           {/* Decorative Floating Cards */}
           <FloatingRiskCard 
-            isHighRisk={result?.risk_analysis.risk_level === "High"} 
+            isHighRisk={false} 
           />
           <FloatingAnalysisCard 
-            isCompliant={result?.lending_decision.recommendation === "Approve"} 
+            isCompliant={true} 
           />
 
           <ToolWindow>
@@ -95,29 +93,7 @@ export default function Home() {
                 </motion.div>
               )}
 
-              {state === "RESULTS" && result && (
-                <motion.div
-                  key="results"
-                  initial={{ opacity: 0, scale: 0.98 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="space-y-8"
-                >
-                  <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-6">
-                    <button 
-                      onClick={reset}
-                      className="flex items-center gap-2 text-xs font-bold text-primary hover:text-primary/80 transition-colors bg-primary/10 px-4 py-2 rounded-full border border-primary/20"
-                    >
-                      <RefreshCcw className="w-3 h-3" />
-                      New Assessment
-                    </button>
-                    <div className="text-right">
-                      <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Request ID</span>
-                      <div className="text-xs font-mono text-primary/60">{result.request_id}</div>
-                    </div>
-                  </div>
-                  <ResultsDashboard data={result} />
-                </motion.div>
-              )}
+
 
               {state === "ERROR" && (
                 <motion.div
