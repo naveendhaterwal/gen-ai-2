@@ -231,13 +231,14 @@ def node_risk_analysis(state: WorkflowState) -> WorkflowState:
         }
         
         # Call the risk analysis agent
-        analysis = risk_agent.analyze(
+        analysis, interaction = risk_agent.analyze(
             borrower_data=borrower_data,
             risk_score=state.ml_risk_score,
             risk_level=state.ml_risk_level.value if state.ml_risk_level else "Unknown"
         )
         
         state.risk_analysis = analysis
+        state.agent_interactions.append(interaction)
         
         logger.info(f"   Top Risk Factors: {analysis.get('top_risk_factors', [])}")
         logger.info(f"   Positive Factors: {analysis.get('positive_factors', [])}")
@@ -288,6 +289,18 @@ def node_policy_retrieval(state: WorkflowState) -> WorkflowState:
         state.policy_violations = violations
         state.policy_compliances = compliances
 
+        # Log policy retrieval interaction
+        state.agent_interactions.append({
+            "agent": "Policy Retrieval Agent",
+            "prompt": f"Retrieving policies for borrower with credit score {borrower.credit_score}, FOIR {state.foir*100:.1f}%, and loan amount {state.loan_amount_requested}.",
+            "response": f"Retrieved {len(policies)} matching policies. Detected {violations} violations and {compliances} compliances.",
+            "metadata": {
+                "violations": violations,
+                "compliances": compliances,
+                "rules_checked": len(policies)
+            }
+        })
+
         for warning in retrieval_result.get("warnings", []):
             state.add_error(warning)
         
@@ -334,13 +347,14 @@ def node_lending_decision(state: WorkflowState) -> WorkflowState:
         }
         
         # Call decision agent
-        decision = decision_agent.decide(
+        decision, interaction = decision_agent.decide(
             risk_analysis=state.risk_analysis,
             policy_matches=state.policy_matches,
             borrower_data=borrower_data
         )
         
         state.final_decision = decision
+        state.agent_interactions.append(interaction)
         
         logger.info(f"   Recommendation: {decision.get('recommendation')}")
         logger.info(f"   Reason: {decision.get('primary_reason')}")

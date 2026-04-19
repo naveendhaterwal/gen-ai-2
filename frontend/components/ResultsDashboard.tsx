@@ -17,7 +17,7 @@ import { cn, formatCurrency } from "@/lib/utils";
 const ResultsDashboard = ({ data }: { data: PredictionResponse }) => {
   const { lending_decision, risk_analysis, policy_retrieval, foir, dti, proposed_emi } = data;
 
-  const decisionStatus = lending_decision.recommendation.toLowerCase();
+  const decisionStatus = lending_decision?.recommendation?.toLowerCase() || "manual review";
   const isApproved = decisionStatus === "approve";
   const isReview = decisionStatus === "manual review" || decisionStatus === "review";
   const isReject = decisionStatus === "reject";

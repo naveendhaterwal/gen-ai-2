@@ -157,7 +157,8 @@ async def predict_risk(borrower_input: BorrowerInput) -> PredictionResponse:
             lending_decision=lending_decision,
             foir=workflow_state.foir,
             dti=workflow_state.dti,
-            proposed_emi=workflow_state.proposed_emi
+            proposed_emi=workflow_state.proposed_emi,
+            agent_interactions=workflow_state.agent_interactions
         )
         
         logger.info(f"✓ Prediction complete for {borrower_input.full_name}")

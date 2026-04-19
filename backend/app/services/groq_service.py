@@ -135,12 +135,22 @@ Provide:
             result = json.loads(response)
             result["agent_source"] = "groq"
             result["warnings"] = []
-            return result
+            
+            # Metadata for logging
+            interaction = {
+                "agent": "Risk Analysis Agent",
+                "system_prompt": system_prompt,
+                "prompt": user_prompt,
+                "response": response
+            }
+            return result, interaction
         except Exception as exc:
             # Deterministic fallback without fabricated narrative text.
             risk_factors = []
             positive_factors = []
-
+            
+            # ... (omitted for brevity in chunking, will keep existing fallback logic)
+            # Actually I need to include it or it will be deleted.
             if borrower_data.get("foir", 0.0) > 0.45:
                 risk_factors.append("FOIR above 45% threshold")
             else:
@@ -163,13 +173,21 @@ Provide:
             if not positive_factors:
                 positive_factors.append("Limited positive factors from current threshold checks")
 
-            return {
+            fallback_result = {
                 "top_risk_factors": risk_factors,
                 "positive_factors": positive_factors,
                 "confidence_score": 0.70,
                 "agent_source": "fallback",
                 "warnings": [f"Risk analysis fallback used: {exc}"],
             }
+            interaction = {
+                "agent": "Risk Analysis Agent",
+                "system_prompt": system_prompt,
+                "prompt": user_prompt,
+                "response": json.dumps(fallback_result, indent=2),
+                "error": str(exc)
+            }
+            return fallback_result, interaction
 
 
 class LendingDecisionAgent:
@@ -219,9 +237,17 @@ Provide:
             result = json.loads(response)
             result["agent_source"] = "groq"
             result["warnings"] = []
-            return result
+            
+            interaction = {
+                "agent": "Lending Decision Agent",
+                "system_prompt": system_prompt,
+                "prompt": user_prompt,
+                "response": response
+            }
+            return result, interaction
         except Exception as exc:
             violations = len([p for p in policy_matches if p.get("status") == "Violated"])
+            # ... (fallback logic)
             if violations >= 2:
                 recommendation = "Reject"
                 reason = "Multiple policy violations detected"
@@ -238,7 +264,7 @@ Provide:
                 action = "Proceed with standard approval workflow"
                 manual_review_needed = False
 
-            return {
+            fallback_result = {
                 "recommendation": recommendation,
                 "primary_reason": reason,
                 "secondary_reasons": [],
@@ -247,6 +273,14 @@ Provide:
                 "agent_source": "fallback",
                 "warnings": [f"Decision fallback used: {exc}"],
             }
+            interaction = {
+                "agent": "Lending Decision Agent",
+                "system_prompt": system_prompt,
+                "prompt": user_prompt,
+                "response": json.dumps(fallback_result, indent=2),
+                "error": str(exc)
+            }
+            return fallback_result, interaction
 
 
 # Global instances

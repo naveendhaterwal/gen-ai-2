@@ -110,6 +110,8 @@ class PredictionResponse(BaseModel):
     dti: float = Field(..., description="Debt-to-Income Ratio")
     proposed_emi: float = Field(..., description="Proposed monthly EMI")
     
+    agent_interactions: List[Dict[str, Any]] = Field(default_factory=list, description="AI Agent interaction logs")
+    
     class Config:
         json_schema_extra = {
             "example": {
