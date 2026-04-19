@@ -36,6 +36,20 @@ export interface AgentInteraction {
   error?: string;
 }
 
+export interface WorkflowTraceStep {
+  step: string;
+  node: string;
+  status: "completed" | "failed";
+  started_at: string;
+  ended_at: string;
+  duration_ms: number;
+  model: string;
+  source: string;
+  note?: string;
+  input: Record<string, any>;
+  output: Record<string, any>;
+}
+
 export interface PredictionResponse {
   borrower_name: string;
   request_id: string;
@@ -55,6 +69,8 @@ export interface PredictionResponse {
   dti: number;
   proposed_emi: number;
   agent_interactions: AgentInteraction[];
+  score_breakdown: Record<string, any>;
+  workflow_trace: WorkflowTraceStep[];
 }
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";

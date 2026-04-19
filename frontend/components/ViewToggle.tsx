@@ -2,11 +2,11 @@
 
 import React from "react";
 import { motion } from "framer-motion";
-import { LayoutDashboard, ShieldCheck } from "lucide-react";
+import { LayoutDashboard, Workflow } from "lucide-react";
 
 interface ViewToggleProps {
-  activeTab: "dashboard" | "agents";
-  onChange: (tab: "dashboard" | "agents") => void;
+  activeTab: "dashboard" | "workflow";
+  onChange: (tab: "dashboard" | "workflow") => void;
 }
 
 const ViewToggle: React.FC<ViewToggleProps> = ({ activeTab, onChange }) => {
@@ -35,13 +35,13 @@ const ViewToggle: React.FC<ViewToggleProps> = ({ activeTab, onChange }) => {
         </button>
 
         <button
-          onClick={() => onChange("agents")}
+          onClick={() => onChange("workflow")}
           className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-bold transition-colors relative z-10 ${
-            activeTab === "agents" ? "text-primary" : "text-muted-foreground hover:text-white"
+            activeTab === "workflow" ? "text-primary" : "text-muted-foreground hover:text-white"
           }`}
         >
-          <ShieldCheck className="w-4 h-4" />
-          AI Agents
+          <Workflow className="w-4 h-4" />
+          Workflow
         </button>
       </div>
     </div>

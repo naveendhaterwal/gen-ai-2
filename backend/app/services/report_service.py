@@ -59,6 +59,8 @@ class ReportService:
 			"dti": state.dti,
 			"proposed_emi": state.proposed_emi,
 			"agent_interactions": state.agent_interactions,
+			"score_breakdown": state.score_breakdown,
+			"workflow_trace": state.workflow_trace,
 		}
 
 		return report

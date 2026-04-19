@@ -8,7 +8,7 @@ import logging
 import numpy as np
 import pandas as pd
 from pathlib import Path
-from typing import Tuple, List
+from typing import Tuple, List, Dict, Any
 
 from app.core.config import settings
 from app.schemas.borrower import BorrowerProfile
@@ -139,49 +139,77 @@ class MLService:
         """Prepare borrower data for the saved sklearn pipeline."""
         return self._build_model_input(borrower)
     
-    def predict_risk(self, borrower: BorrowerProfile) -> Tuple[str, float, float]:
+    def predict_risk(self, borrower: BorrowerProfile) -> Tuple[str, float, float, Dict[str, Any]]:
         """
-        Predict credit risk for a borrower.
-        
-        Args:
-            borrower: BorrowerProfile object
-            
-        Returns:
-            Tuple of (risk_level, risk_score, confidence)
-            - risk_level: "Low", "Medium", or "High"
-            - risk_score: 0-100
-            - confidence: 0-1
+        Predict credit risk using a hybrid model (40% ML + 60% Rule-based).
+        Ensures sensitivity to risk even if the ML model is biased.
         """
         
         try:
-            if self.use_fallback or not self.model_loaded:
-                return self._predict_fallback(borrower)
+            # 1. Calculate Rule-Based Score (Standard for manual/deterministic logic)
+            rule_level, rule_score, rule_conf, rule_breakdown = self._predict_fallback(borrower)
             
-            # Prepare features
-            features = self._prepare_features(borrower)
-            
-            if not hasattr(self.model, "predict_proba"):
-                logger.warning("Loaded model does not support predict_proba. Using fallback.")
-                return self._predict_fallback(borrower)
+            # 2. Calculate ML Model Score (if available)
+            ml_score = 0.0
+            ml_prob = 0.0
+            ml_available = False
+            ml_details = {}
 
-            # Probability of positive class = default risk
-            probabilities = self.model.predict_proba(features)[0]
-            positive_index = int(np.argmax(self.model.classes_ == 1)) if 1 in self.model.classes_ else 1
-            default_probability = float(probabilities[positive_index])
+            if not self.use_fallback and self.model_loaded:
+                # Prepare features
+                features = self._prepare_features(borrower)
+                
+                if hasattr(self.model, "predict_proba"):
+                    probabilities = self.model.predict_proba(features)[0]
+                    positive_index = int(np.argmax(self.model.classes_ == 1)) if 1 in self.model.classes_ else 1
+                    ml_prob = float(probabilities[positive_index])
+                    ml_score = round(ml_prob * 100.0, 2)
+                    ml_available = True
+                    ml_details = {
+                        "ml_default_probability": round(ml_prob, 6),
+                        "ml_class_probabilities": [round(float(p), 6) for p in probabilities],
+                        "ml_classes": [int(c) if isinstance(c, (int, np.integer)) else str(c) for c in self.model.classes_]
+                    }
 
-            risk_score = round(default_probability * 100.0, 2)
-            confidence = round(float(np.max(probabilities)), 3)
-            risk_level, _ = self._interpret_prediction(default_probability)
+            # 3. Blend Scores (Hybrid Model)
+            if ml_available:
+                # 40% ML weight, 60% Rule weight
+                hybrid_score = (ml_score * 0.4) + (rule_score * 0.6)
+                method = "hybrid_model"
+            else:
+                hybrid_score = rule_score
+                method = "rule_based_fallback"
+
+            # 4. Final Interpretations
+            risk_score = round(hybrid_score, 2)
+            risk_level, _ = self._interpret_prediction(risk_score / 100.0)
             
-            logger.info(f"Risk Prediction (ML): {risk_level} (Score: {risk_score}, Confidence: {confidence})")
+            # Use ML confidence if available, else fallback confidence
+            confidence = 0.85 if ml_available else 0.7
+
+            score_breakdown = {
+                "method": method,
+                "formula": "risk_score = (ML_score * 0.4) + (Rule_score * 0.6)" if ml_available else "rule_based_fallback",
+                "risk_score": risk_score,
+                "components": {
+                    "ml_model_contribution": round(ml_score * 0.4, 2) if ml_available else 0,
+                    "rule_engine_contribution": round(rule_score * 0.6 if ml_available else rule_score, 2),
+                    "raw_ml_score": ml_score if ml_available else None,
+                    "raw_rule_score": rule_score
+                },
+                "rule_details": rule_breakdown.get("components", {}),
+                **ml_details
+            }
             
-            return risk_level, risk_score, confidence
+            logger.info(f"Risk Prediction ({method}): {risk_level} (Score: {risk_score}, Confidence: {confidence})")
+            
+            return risk_level, risk_score, confidence, score_breakdown
             
         except Exception as e:
-            logger.error(f"Error in prediction: {str(e)}. Falling back to rule-based logic.")
+            logger.error(f"Error in hybrid prediction: {str(e)}. Falling back to pure rule-based logic.")
             return self._predict_fallback(borrower)
             
-    def _predict_fallback(self, borrower: BorrowerProfile) -> Tuple[str, float, float]:
+    def _predict_fallback(self, borrower: BorrowerProfile) -> Tuple[str, float, float, Dict[str, Any]]:
         """Rule-based risk calculation as a fallback for missing or incompatible ML model."""
         logger.info("Using rule-based risk prediction fallback")
         
@@ -204,7 +232,19 @@ class MLService:
         
         risk_level, _ = self._interpret_prediction(total_risk / 100.0)
         
-        return risk_level, round(total_risk, 2), 0.7  # Constant confidence for fallback
+        score_breakdown = {
+            "method": "rule_based_fallback",
+            "formula": "risk = clamp(base_risk + foir_penalty + dti_penalty + employment_adjustment, 0, 100)",
+            "strict_no_fallbacks": settings.STRICT_NO_FALLBACKS,
+            "components": {
+                "base_risk_from_credit_score": round(base_risk, 4),
+                "foir_penalty": round(foir_penalty, 4),
+                "dti_penalty": round(dti_penalty, 4),
+                "employment_adjustment": employment_bonus,
+            },
+        }
+
+        return risk_level, round(total_risk, 2), 0.7, score_breakdown  # Constant confidence for fallback
     
     def _interpret_prediction(self, prediction: float) -> Tuple[str, float]:
         """

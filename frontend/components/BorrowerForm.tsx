@@ -22,8 +22,23 @@ const BorrowerForm = ({ onSubmit, isLoading }: BorrowerFormProps) => {
     const { name, value, type } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: type === "number" ? parseFloat(value) : value,
+      [name]: type === "number" ? (value === "" ? "" : parseFloat(value)) : value,
     }));
+  };
+
+  const fillDemoData = () => {
+    setFormData({
+      full_name: "Rajesh Kumar",
+      age: 35,
+      employment_type: "Salaried",
+      monthly_income: 85000,
+      credit_score: 780,
+      existing_loan_amount: 150000,
+      existing_emi_monthly: 12000,
+      loan_amount_requested: 500000,
+      loan_purpose: "Personal",
+      loan_tenure_months: 36,
+    });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -47,6 +62,7 @@ const BorrowerForm = ({ onSubmit, isLoading }: BorrowerFormProps) => {
               placeholder="e.g. Rajesh Kumar"
               required
               onChange={handleChange}
+              value={formData.full_name || ""}
             />
             <InputField
               label="Age"
@@ -55,6 +71,7 @@ const BorrowerForm = ({ onSubmit, isLoading }: BorrowerFormProps) => {
               placeholder="e.g. 35"
               required
               onChange={handleChange}
+              value={formData.age || ""}
               min={18}
               max={70}
             />
@@ -72,6 +89,7 @@ const BorrowerForm = ({ onSubmit, isLoading }: BorrowerFormProps) => {
               placeholder="e.g. 50000"
               required
               onChange={handleChange}
+              value={formData.monthly_income || ""}
             />
           </div>
         </FormSection>
@@ -86,6 +104,7 @@ const BorrowerForm = ({ onSubmit, isLoading }: BorrowerFormProps) => {
               placeholder="300 - 900"
               required
               onChange={handleChange}
+              value={formData.credit_score || ""}
               min={300}
               max={900}
             />
@@ -95,6 +114,7 @@ const BorrowerForm = ({ onSubmit, isLoading }: BorrowerFormProps) => {
               type="number"
               placeholder="e.g. 200000"
               onChange={handleChange}
+              value={formData.existing_loan_amount || ""}
             />
             <InputField
               label="Current Total Monthly EMI (₹)"
@@ -102,6 +122,7 @@ const BorrowerForm = ({ onSubmit, isLoading }: BorrowerFormProps) => {
               type="number"
               placeholder="e.g. 5000"
               onChange={handleChange}
+              value={formData.existing_emi_monthly || ""}
             />
           </div>
         </FormSection>
@@ -116,6 +137,7 @@ const BorrowerForm = ({ onSubmit, isLoading }: BorrowerFormProps) => {
               placeholder="e.g. 500000"
               required
               onChange={handleChange}
+              value={formData.loan_amount_requested || ""}
             />
             <SelectField
               label="Loan Purpose"
@@ -131,12 +153,20 @@ const BorrowerForm = ({ onSubmit, isLoading }: BorrowerFormProps) => {
               placeholder="e.g. 60"
               required
               onChange={handleChange}
-              value={formData.loan_tenure_months}
+              value={formData.loan_tenure_months || ""}
             />
           </div>
         </FormSection>
 
-        <div className="flex justify-center pt-8">
+        <div className="flex flex-col md:flex-row items-center justify-center gap-4 pt-8">
+          <button
+            type="button"
+            onClick={fillDemoData}
+            disabled={isLoading}
+            className="px-8 py-4 rounded-2xl text-lg font-bold transition-all border border-white/10 hover:bg-white/5 active:scale-95 disabled:opacity-50"
+          >
+            Fill Demo Data
+          </button>
           <button
             type="submit"
             disabled={isLoading}

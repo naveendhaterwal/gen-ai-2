@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { PredictionResponse, getReport } from "@/lib/api";
 import ResultsDashboard from "@/components/ResultsDashboard";
-import AIAgentLogs from "@/components/AIAgentLogs";
+import WorkflowTrace from "@/components/WorkflowTrace";
 import ViewToggle from "@/components/ViewToggle";
 import Loader from "@/components/Loader";
 import { motion, AnimatePresence } from "framer-motion";
@@ -18,7 +18,7 @@ export default function ResultsPage() {
   const [result, setResult] = useState<PredictionResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"dashboard" | "agents">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "workflow">("dashboard");
 
   useEffect(() => {
     async function fetchReport() {
@@ -42,7 +42,7 @@ export default function ResultsPage() {
       <div className="min-h-screen flex flex-col items-center justify-center bg-black relative">
         <div className="fixed inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(59,130,246,0.05),transparent_50%)] pointer-events-none" />
         <Loader />
-        <p className="mt-8 text-muted-foreground animate-pulse font-medium tracking-widest uppercase text-[10px]">Syncing with AI Agents...</p>
+        <p className="mt-8 text-muted-foreground animate-pulse font-medium tracking-widest uppercase text-[10px]">Syncing backend workflow...</p>
       </div>
     );
   }
@@ -126,14 +126,14 @@ export default function ResultsPage() {
               </motion.div>
             ) : (
               <motion.div
-                key="agents"
+                key="workflow"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
                 transition={{ duration: 0.3 }}
-                className="max-w-4xl mx-auto"
+                className="max-w-6xl mx-auto"
               >
-                <AIAgentLogs interactions={result.agent_interactions} />
+                <WorkflowTrace data={result} />
               </motion.div>
             )}
           </AnimatePresence>

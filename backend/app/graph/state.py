@@ -38,6 +38,7 @@ class WorkflowState:
     ml_risk_level: Optional[RiskLevel] = None
     ml_risk_score: float = 0.0
     ml_confidence: float = 0.0
+    score_breakdown: Dict[str, Any] = field(default_factory=dict)
     
     # ========== RISK ANALYSIS AGENT OUTPUT ==========
     # From Risk Analysis Agent (LLM)
@@ -76,6 +77,7 @@ class WorkflowState:
     errors: List[str] = field(default_factory=list)
     step_completed: str = ""
     agent_interactions: List[Dict[str, Any]] = field(default_factory=list)
+    workflow_trace: List[Dict[str, Any]] = field(default_factory=list)
     
     def add_error(self, error_message: str):
         """Add an error message to the state"""
@@ -92,10 +94,12 @@ class WorkflowState:
             "ml_risk_level": self.ml_risk_level.value if self.ml_risk_level else None,
             "ml_risk_score": self.ml_risk_score,
             "ml_confidence": self.ml_confidence,
+            "score_breakdown": self.score_breakdown,
             "risk_analysis": self.risk_analysis,
             "policy_matches": self.policy_matches,
             "final_decision": self.final_decision,
             "agent_interactions": self.agent_interactions,
+            "workflow_trace": self.workflow_trace,
             "errors": self.errors
         }
 
