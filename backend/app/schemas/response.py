@@ -110,6 +110,10 @@ class PredictionResponse(BaseModel):
     dti: float = Field(..., description="Debt-to-Income Ratio")
     proposed_emi: float = Field(..., description="Proposed monthly EMI")
     
+    agent_interactions: List[Dict[str, Any]] = Field(default_factory=list, description="AI Agent interaction logs")
+    score_breakdown: Dict[str, Any] = Field(default_factory=dict, description="How risk score was computed")
+    workflow_trace: List[Dict[str, Any]] = Field(default_factory=list, description="Step-by-step backend execution trace")
+    
     class Config:
         json_schema_extra = {
             "example": {
@@ -142,7 +146,13 @@ class PredictionResponse(BaseModel):
                 },
                 "foir": 0.48,
                 "dti": 0.15,
-                "proposed_emi": 8000
+                "proposed_emi": 8000,
+                "score_breakdown": {
+                    "method": "ml_model",
+                    "formula": "risk_score = P(default) * 100",
+                    "default_probability": 0.65
+                },
+                "workflow_trace": []
             }
         }
 

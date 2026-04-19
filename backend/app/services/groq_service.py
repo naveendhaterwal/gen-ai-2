@@ -92,6 +92,33 @@ class GroqService:
             logger.error(f"Error calling Groq API: {str(e)}")
             raise
 
+    def _extract_json(self, text: str) -> dict:
+        """Helper to extract and parse JSON from LLM response strings which may include markdown tags."""
+        logger.debug(f"Attempting to extract JSON from: {text[:100]}...")
+        clean_text = text.strip()
+        
+        # Remove markdown code blocks if present
+        if clean_text.startswith("```"):
+            # Look for the start of the actual JSON content
+            first_brace = clean_text.find("{")
+            last_brace = clean_text.rfind("}")
+            if first_brace != -1 and last_brace != -1:
+                clean_text = clean_text[first_brace : last_brace + 1]
+        
+        try:
+            return json.loads(clean_text)
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse JSON from cleaned text: {e}")
+            # Fallback attempt: find the first { and last } if not already tried
+            first_brace = clean_text.find("{")
+            last_brace = clean_text.rfind("}")
+            if first_brace != -1 and last_brace != -1:
+                try:
+                    return json.loads(clean_text[first_brace : last_brace + 1])
+                except:
+                    pass
+            raise
+
 
 class RiskAnalysisAgent:
     """Agent for analyzing credit risk"""
@@ -106,10 +133,15 @@ class RiskAnalysisAgent:
         Returns dict with top_risk_factors, positive_factors, etc.
         """
         
-        system_prompt = """You are a credit risk analyst. 
-Analyze the borrower's profile and provide clear, concise risk factors.
-Be specific and quantitative when possible.
-Format as JSON."""
+        system_prompt = """You are a credit risk analyst.
+Analyze the borrower's profile and provide specific risk factors.
+Format your response as a flat JSON object with these EXACT keys:
+- "top_risk_factors": (List of strings)
+- "positive_factors": (List of strings)
+- "confidence_score": (Float between 0 and 1)
+- "risk_level": (String: "Low", "Medium", or "High")
+
+Do not nest these keys inside another object."""
         
         user_prompt = f"""
 Analyze this borrower's credit risk:
@@ -124,23 +156,68 @@ Analyze this borrower's credit risk:
 ML Risk Score: {risk_score}
 ML Risk Level: {risk_level}
 
-Provide:
-1. Top 3 risk factors
-2. Top 2 positive factors
-3. Confidence score (0-1)
-"""
+Provide the analysis as a JSON object."""
         
         try:
-            response = self.groq.call_llm(user_prompt, system_prompt, temperature=0.2)
-            result = json.loads(response)
+            response = self.groq.call_llm(user_prompt, system_prompt, temperature=0.1)
+            raw_result = self.groq._extract_json(response)
+            
+            # --- NORMALIZATION LAYER ---
+            # Handle potential nesting (e.g., creditRiskAnalysis)
+            if "creditRiskAnalysis" in raw_result:
+                raw_result.update(raw_result.pop("creditRiskAnalysis"))
+            
+            # Map camelCase to snake_case
+            mapping = {
+                "topRiskFactors": "top_risk_factors",
+                "topPositiveFactors": "positive_factors",
+                "positiveFactors": "positive_factors",
+                "confidenceScore": "confidence_score",
+                "riskLevel": "risk_level"
+            }
+            
+            result = {}
+            for k, v in raw_result.items():
+                target_key = mapping.get(k, k)
+                result[target_key] = v
+            
+            # Ensure required keys exist
+            result.setdefault("top_risk_factors", [])
+            result.setdefault("positive_factors", [])
+            result.setdefault("confidence_score", 0.7)
+            
+            # Flatten objects to strings if needed (LLM sometimes returns objects in factors)
+            for factor_key in ["top_risk_factors", "positive_factors"]:
+                processed = []
+                for item in result.get(factor_key, []):
+                    if isinstance(item, dict):
+                        # Extract "factor" or "description" string
+                        processed.append(item.get("factor") or item.get("description") or str(item))
+                    else:
+                        processed.append(str(item))
+                result[factor_key] = processed
+
             result["agent_source"] = "groq"
             result["warnings"] = []
-            return result
+            
+            # Metadata for logging
+            interaction = {
+                "agent": "Risk Analysis Agent",
+                "system_prompt": system_prompt,
+                "prompt": user_prompt,
+                "response": response
+            }
+            return result, interaction
         except Exception as exc:
+            if settings.STRICT_NO_FALLBACKS:
+                raise RuntimeError(f"Risk Analysis Agent failed in strict mode: {exc}") from exc
+
             # Deterministic fallback without fabricated narrative text.
             risk_factors = []
             positive_factors = []
-
+            
+            # ... (omitted for brevity in chunking, will keep existing fallback logic)
+            # Actually I need to include it or it will be deleted.
             if borrower_data.get("foir", 0.0) > 0.45:
                 risk_factors.append("FOIR above 45% threshold")
             else:
@@ -163,13 +240,21 @@ Provide:
             if not positive_factors:
                 positive_factors.append("Limited positive factors from current threshold checks")
 
-            return {
+            fallback_result = {
                 "top_risk_factors": risk_factors,
                 "positive_factors": positive_factors,
                 "confidence_score": 0.70,
                 "agent_source": "fallback",
                 "warnings": [f"Risk analysis fallback used: {exc}"],
             }
+            interaction = {
+                "agent": "Risk Analysis Agent",
+                "system_prompt": system_prompt,
+                "prompt": user_prompt,
+                "response": json.dumps(fallback_result, indent=2),
+                "error": str(exc)
+            }
+            return fallback_result, interaction
 
 
 class LendingDecisionAgent:
@@ -191,9 +276,15 @@ class LendingDecisionAgent:
         """
         
         system_prompt = """You are a lending decision expert.
-Make clear, justifiable lending decisions.
-Consider both risk and policy compliance.
-Format as JSON."""
+Make clear, justifiable lending decisions based on risk profile and policy matches.
+Format your response as a flat JSON object with these EXACT keys:
+- "recommendation": (String: "Approve", "Approve with Lower Amount", "Manual Review", or "Reject")
+- "primary_reason": (String)
+- "secondary_reasons": (List of strings)
+- "suggested_action": (String)
+- "manual_review_needed": (Boolean)
+
+Do not nest these keys inside another object."""
         
         user_prompt = f"""
 Make a lending decision for:
@@ -205,23 +296,55 @@ Credit Score: {borrower_data.get('credit_score')}
 
 Policy Violations: {len([p for p in policy_matches if p.get('status') == 'Violated'])}
 
-Options: Approve, Approve with Lower Amount, Manual Review, Reject
-
-Provide:
-1. Recommendation (one of the above)
-2. Primary reason
-3. Secondary reasons (list)
-4. Suggested next action
-"""
+Provide the final decision as a JSON object."""
         
         try:
-            response = self.groq.call_llm(user_prompt, system_prompt, temperature=0.2)
-            result = json.loads(response)
+            response = self.groq.call_llm(user_prompt, system_prompt, temperature=0.1)
+            raw_result = self.groq._extract_json(response)
+            
+            # --- NORMALIZATION LAYER ---
+            # Handle potential nesting
+            if "lendingDecision" in raw_result:
+                raw_result.update(raw_result.pop("lendingDecision"))
+            elif "decision" in raw_result:
+                raw_result.update(raw_result.pop("decision"))
+
+            # Map camelCase to snake_case
+            mapping = {
+                "primaryReason": "primary_reason",
+                "secondaryReasons": "secondary_reasons",
+                "suggestedAction": "suggested_action",
+                "manualReviewNeeded": "manual_review_needed"
+            }
+            
+            result = {}
+            for k, v in raw_result.items():
+                target_key = mapping.get(k, k)
+                result[target_key] = v
+
+            # Ensure required keys exist
+            result.setdefault("recommendation", "Manual Review")
+            result.setdefault("primary_reason", "Decision generated by AI agent")
+            result.setdefault("secondary_reasons", [])
+            result.setdefault("suggested_action", "Check application documentation")
+            result.setdefault("manual_review_needed", True)
+
             result["agent_source"] = "groq"
             result["warnings"] = []
-            return result
+            
+            interaction = {
+                "agent": "Lending Decision Agent",
+                "system_prompt": system_prompt,
+                "prompt": user_prompt,
+                "response": response
+            }
+            return result, interaction
         except Exception as exc:
+            if settings.STRICT_NO_FALLBACKS:
+                raise RuntimeError(f"Lending Decision Agent failed in strict mode: {exc}") from exc
+
             violations = len([p for p in policy_matches if p.get("status") == "Violated"])
+            # ... (fallback logic)
             if violations >= 2:
                 recommendation = "Reject"
                 reason = "Multiple policy violations detected"
@@ -238,7 +361,7 @@ Provide:
                 action = "Proceed with standard approval workflow"
                 manual_review_needed = False
 
-            return {
+            fallback_result = {
                 "recommendation": recommendation,
                 "primary_reason": reason,
                 "secondary_reasons": [],
@@ -247,6 +370,14 @@ Provide:
                 "agent_source": "fallback",
                 "warnings": [f"Decision fallback used: {exc}"],
             }
+            interaction = {
+                "agent": "Lending Decision Agent",
+                "system_prompt": system_prompt,
+                "prompt": user_prompt,
+                "response": json.dumps(fallback_result, indent=2),
+                "error": str(exc)
+            }
+            return fallback_result, interaction
 
 
 # Global instances

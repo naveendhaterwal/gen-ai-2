@@ -279,6 +279,8 @@ class RAGService:
 		try:
 			policies = self._retrieve_from_qdrant(borrower)
 			if not policies:
+				if settings.STRICT_NO_FALLBACKS:
+					raise RuntimeError("No policy chunks returned from Qdrant and strict mode disallows fallback rules")
 				warnings.append("No policy chunks returned from Qdrant. Used deterministic fallback rules.")
 				return {
 					"policies": self._deterministic_rules(borrower),
@@ -289,6 +291,8 @@ class RAGService:
 			return {"policies": policies, "source": "qdrant", "warnings": warnings}
 
 		except (UnexpectedResponse, RuntimeError, Exception) as exc:
+			if settings.STRICT_NO_FALLBACKS:
+				raise RuntimeError(f"Policy retrieval failed in strict mode: {exc}") from exc
 			warnings.append(f"Policy retrieval failed: {exc}. Used deterministic fallback rules.")
 			logger.warning(warnings[-1])
 			return {

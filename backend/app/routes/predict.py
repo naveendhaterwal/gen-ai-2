@@ -8,6 +8,7 @@ import logging
 from fastapi import APIRouter, HTTPException
 
 from app.schemas.borrower import BorrowerInput
+from app.core.config import settings
 from app.schemas.response import (
     PredictionResponse,
     RiskAnalysisResponse,
@@ -59,6 +60,16 @@ async def predict_risk(borrower_input: BorrowerInput) -> PredictionResponse:
         # Log workflow issues but continue if core outputs exist.
         if workflow_state.errors:
             logger.warning(f"Workflow completed with errors: {workflow_state.errors}")
+
+        if settings.STRICT_NO_FALLBACKS and workflow_state.errors:
+            raise HTTPException(
+                status_code=503,
+                detail={
+                    "message": "Strict mode enabled: backend dependencies unavailable or workflow step failed.",
+                    "request_id": workflow_state.request_id,
+                    "errors": workflow_state.errors,
+                },
+            )
 
         if not workflow_state.ml_risk_level:
             raise HTTPException(
@@ -157,7 +168,10 @@ async def predict_risk(borrower_input: BorrowerInput) -> PredictionResponse:
             lending_decision=lending_decision,
             foir=workflow_state.foir,
             dti=workflow_state.dti,
-            proposed_emi=workflow_state.proposed_emi
+            proposed_emi=workflow_state.proposed_emi,
+            agent_interactions=workflow_state.agent_interactions,
+            score_breakdown=workflow_state.score_breakdown,
+            workflow_trace=workflow_state.workflow_trace,
         )
         
         logger.info(f"✓ Prediction complete for {borrower_input.full_name}")
@@ -170,6 +184,8 @@ async def predict_risk(borrower_input: BorrowerInput) -> PredictionResponse:
         
         return response
         
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"❌ Error in prediction: {str(e)}", exc_info=True)
         raise HTTPException(

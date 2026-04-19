@@ -41,6 +41,10 @@ class Settings(BaseSettings):
     # ML Model Paths
     ML_MODEL_PATH: str = "./models/logistic_model.pkl"
     FEATURE_COLUMNS_PATH: str = "./models/feature_columns.pkl"
+
+    # Runtime behavior
+    # When enabled, backend will fail requests instead of returning deterministic/mock fallback outputs.
+    STRICT_NO_FALLBACKS: bool = True
     
     # CORS (comma-separated in .env)
     CORS_ORIGINS: str = "http://localhost:3000,http://localhost:3001"

@@ -1,90 +1,118 @@
-# credit-risk-ai
+# Credit Risk AI - Multi-Agent Assessment System
 
-AI-powered Credit Risk & Lending Decision Support System.
+[![Next.js](https://img.shields.io/badge/Frontend-Next.js%2014-black?style=flat-square&logo=next.js)](https://nextjs.org/)
+[![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688?style=flat-square&logo=fastapi)](https://fastapi.tiangolo.com/)
+[![LangGraph](https://img.shields.io/badge/AI-LangGraph-blue?style=flat-square)](https://github.com/langchain-ai/langgraph)
+[![Groq](https://img.shields.io/badge/LLM-Groq-orange?style=flat-square)](https://groq.com/)
 
-## Project Structure
+An enterprise-grade credit risk assessment platform that combines **Machine Learning**, **Retrieval-Augmented Generation (RAG)**, and **Multi-Agent Orchestration** to provide high-fidelity lending decisions.
 
-- `frontend/` - Next.js app for the borrower form, dashboard, and result pages.
-- `backend/` - FastAPI app for prediction, RAG, Groq, and report generation.
-- `docs/` - RBI and SBI policy documents used by the retrieval layer.
-- `shared/` - Optional shared schemas or sample JSON payloads.
+---
 
-## Prerequisites
+## 🔥 Key Features
 
-- Node.js 18+ and npm
-- Python 3.11+
-- A Groq API key
-- Qdrant Cloud credentials
+- **Hybrid Risk Scoring**: Blends a Logistic Regression ML model (40%) with a deterministic Banking Rule Engine (60%) for sensitive and reliable scoring.
+- **Multi-Agent Workflow**: Powered by **LangGraph**, the system orchestrates specialized agents for Risk Analysis, Policy Retrieval, and Final Lending Decisions.
+- **Context-Aware Policy Retrieval**: Uses **Qdrant Cloud** to perform lexical and semantic search across banking policies (RBI, SBI, etc.) to ensure compliance.
+- **Real-Time Traceability**: Deep visibility into the backend execution with step-by-step input/output logging and model transparency.
+- **Premium UI/UX**: Responsive Next.js dashboard featuring glassmorphism and real-time assessment streaming.
 
-## Install
+---
 
-### 1) Frontend
+## 🏗️ Technical Architecture
 
-```bash
-cd "/Users/n2/Desktop/gen ai project /credit-risk-ai/frontend"
-npm install
+```mermaid
+graph TD
+    A[Borrower Form] -->|GraphQL/REST| B[FastAPI Gateway]
+    B --> C[LangGraph Orchestrator]
+    
+    subgraph "Intelligent Agents"
+        C --> D[Input Processor]
+        D --> E[ML Prediction Node]
+        E --> F[Risk Analysis Agent]
+        F --> G[Policy Retrieval Agent]
+        G --> H[Decision Agent]
+    end
+    
+    F -->|LLM Call| I[(Groq Cloud)]
+    G -->|Vector Search| J[(Qdrant DB)]
+    E -->|Predict| K[Scikit-Learn Model]
+    H -->|Final Decision| B
+    B -->|Response| A
 ```
 
-### 2) Backend
+---
+
+## 🛠️ Technology Stack
+
+- **Frontend**: Next.js 14, Tailwind CSS, Framer Motion, Lucide Icons.
+- **Backend**: FastAPI (Python 3.11+), LangGraph, Pydantic v2.
+- **Intelligence**: Groq Llama 3.1 (LLM), Scikit-Learn (ML).
+- **Database**: Qdrant Cloud (Vector Database for RAG).
+
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+- Python 3.11+
+- Node.js 18+
+- [Groq API Key](https://console.groq.com/keys)
+- [Qdrant Cloud Account](https://cloud.qdrant.io/)
+
+### 1. Backend Setup
 
 ```bash
-cd "/Users/n2/Desktop/gen ai project /credit-risk-ai/backend"
-python3 -m venv .venv
-source .venv/bin/activate
+cd backend
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-## Environment Variables
-
-Create `backend/.env` and add the values below:
-
+Create a `.env` file in the `backend/` directory:
 ```env
-GROQ_API_KEY=your_groq_api_key
+GROQ_API_KEY=your_key_here
 QDRANT_URL=your_qdrant_url
 QDRANT_API_KEY=your_qdrant_api_key
-QDRANT_COLLECTION_NAME=credit_risk_docs
-MODEL_PATH=app/models/loan_model.pkl
-PREPROCESSOR_PATH=app/models/preprocessor.pkl
-RBI_DOC_PATH=../docs/RBI_Guidelines_Summary.txt
-SBI_DOC_PATH=../docs/SBI_Internal_Loan_Policy.txt
-CORS_ORIGINS=http://localhost:3000
-LOG_LEVEL=info
+STRICT_NO_FALLBACKS=True
 ```
 
-## Run the Project
-
-### Terminal 1 - Backend
+### 2. Frontend Setup
 
 ```bash
-cd "/Users/n2/Desktop/gen ai project /credit-risk-ai/backend"
-source .venv/bin/activate
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+cd frontend
+npm install
 ```
 
-### Terminal 2 - Frontend
+### 3. Running Locally
 
+**Terminal 1 (Backend):**
 ```bash
-cd "/Users/n2/Desktop/gen ai project /credit-risk-ai/frontend"
+cd backend
+source venv/bin/activate
+python app/main.py
+```
+
+**Terminal 2 (Frontend):**
+```bash
+cd frontend
 npm run dev
 ```
 
-## Access URLs
+Visit `http://localhost:3000` to start assessments.
 
-- Frontend: `http://localhost:3000`
-- Backend API: `http://localhost:8000`
-- API docs: `http://localhost:8000/docs`
+---
 
-## Build Priority
+## 📂 Repository Structure
 
-1. Backend schema, prediction route, and health route.
-2. Frontend borrower form and API client.
-3. RAG workflow for RBI and SBI document retrieval.
-4. Recommendation and report generation.
-5. Dashboard charts and PDF export.
+- `frontend/`: Next.js application with assessment dashboard.
+- `backend/`: FastAPI services, AI agents, and ML pipelines.
+- `docs/`: Banking policy documents used for RAG seeding.
+- `backend/models/`: Serialized ML model and feature configuration.
 
-## Deployment Notes
+---
 
-- Deploy frontend on Vercel.
-- Deploy backend on Render.
-- Keep all secrets in environment variables, not in source control.
-- Upload the two policy documents in `docs/` before enabling RAG.
+## 📜 License
+
+Distributed under the MIT License. See `LICENSE` for more information.
