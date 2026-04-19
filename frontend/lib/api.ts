@@ -73,7 +73,13 @@ export interface PredictionResponse {
   workflow_trace: WorkflowTraceStep[];
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+// On Vercel: backend is served at /_/backend (multi-service routing)
+// In local dev: falls back to localhost:8000
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  (typeof window !== "undefined" && window.location.hostname !== "localhost"
+    ? "/_/backend/api"
+    : "http://localhost:8000/api");
 
 export async function predictRisk(data: BorrowerInput): Promise<PredictionResponse> {
   const response = await fetch(`${API_BASE_URL}/predict/risk`, {
