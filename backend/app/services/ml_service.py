@@ -27,6 +27,7 @@ class MLService:
         self.model = None
         self.feature_columns: List[str] = []
         self.model_loaded = False
+        self.use_fallback = False
         self._load_model()
     
     def _load_model(self):
@@ -36,10 +37,14 @@ class MLService:
             feature_path = Path(settings.FEATURE_COLUMNS_PATH)
             
             if not model_path.exists():
-                raise FileNotFoundError(f"Model not found at {model_path}")
+                logger.warning(f"Model not found at {model_path}. Switching to rule-based fallback.")
+                self.use_fallback = True
+                return
 
             if not feature_path.exists():
-                raise FileNotFoundError(f"Feature columns file not found at {feature_path}")
+                logger.warning(f"Feature columns not found at {feature_path}. Switching to rule-based fallback.")
+                self.use_fallback = True
+                return
             
             # Load the trained model
             self.model = joblib.load(model_path)
@@ -49,11 +54,11 @@ class MLService:
             logger.info(f"Loaded {len(self.feature_columns)} feature columns")
             
         except Exception as e:
-            logger.error(f"Error loading model: {str(e)}")
+            logger.error(f"Error loading model: {str(e)}. Enabling rule-based fallback.")
             self.model = None
             self.feature_columns = []
             self.model_loaded = False
-            raise
+            self.use_fallback = True
 
     def _map_age_bucket(self, age: int) -> str:
         """Map numeric age to bucket labels typically used in credit datasets."""
@@ -149,14 +154,15 @@ class MLService:
         """
         
         try:
-            if not self.model_loaded:
-                raise RuntimeError("ML model is not loaded. Check model files in backend/models")
+            if self.use_fallback or not self.model_loaded:
+                return self._predict_fallback(borrower)
             
             # Prepare features
             features = self._prepare_features(borrower)
             
             if not hasattr(self.model, "predict_proba"):
-                raise AttributeError("Loaded model does not support predict_proba")
+                logger.warning("Loaded model does not support predict_proba. Using fallback.")
+                return self._predict_fallback(borrower)
 
             # Probability of positive class = default risk
             probabilities = self.model.predict_proba(features)[0]
@@ -167,13 +173,38 @@ class MLService:
             confidence = round(float(np.max(probabilities)), 3)
             risk_level, _ = self._interpret_prediction(default_probability)
             
-            logger.info(f"Risk Prediction: {risk_level} (Score: {risk_score}, Confidence: {confidence})")
+            logger.info(f"Risk Prediction (ML): {risk_level} (Score: {risk_score}, Confidence: {confidence})")
             
             return risk_level, risk_score, confidence
             
         except Exception as e:
-            logger.error(f"Error in prediction: {str(e)}")
-            raise
+            logger.error(f"Error in prediction: {str(e)}. Falling back to rule-based logic.")
+            return self._predict_fallback(borrower)
+            
+    def _predict_fallback(self, borrower: BorrowerProfile) -> Tuple[str, float, float]:
+        """Rule-based risk calculation as a fallback for missing or incompatible ML model."""
+        logger.info("Using rule-based risk prediction fallback")
+        
+        # Base score from Credit Score (higher = better)
+        # Convert 300-900 range to 0-100 (inverted for risk)
+        base_risk = 100 - ((borrower.credit_score - 300) / 600 * 100)
+        
+        # Adjust for FOIR (Banks prefer < 40%)
+        # FOIR of 0.5 adds significant risk
+        foir_penalty = max(0, (borrower.foir - 0.4) * 100)
+        
+        # Adjust for DTI (Banks prefer < 40%)
+        dti_penalty = max(0, (borrower.dti - 0.4) * 50)
+        
+        # Employment stability
+        employment_bonus = -5 if borrower.employment_type == "Salaried" else 5
+        
+        total_risk = base_risk + foir_penalty + dti_penalty + employment_bonus
+        total_risk = max(0, min(100, total_risk))
+        
+        risk_level, _ = self._interpret_prediction(total_risk / 100.0)
+        
+        return risk_level, round(total_risk, 2), 0.7  # Constant confidence for fallback
     
     def _interpret_prediction(self, prediction: float) -> Tuple[str, float]:
         """

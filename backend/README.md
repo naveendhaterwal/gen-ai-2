@@ -171,7 +171,7 @@ Banks prefer: FOIR < 45%
 
 ### DTI (Debt-to-Income Ratio)
 ```
-DTI = (Existing Loans + Requested Loan) / Monthly Income
+DTI = (Existing Loans + Requested Loan) / (Monthly Income * 12)
 Banks prefer: DTI < 40%
 ```
 
