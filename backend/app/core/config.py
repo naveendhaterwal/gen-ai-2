@@ -71,8 +71,8 @@ class Settings(BaseSettings):
         """Read .env before shell env vars for project-local consistency."""
         return (
             init_settings,
-            dotenv_settings,
             env_settings,
+            dotenv_settings,
             file_secret_settings,
         )
 

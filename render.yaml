@@ -20,6 +20,4 @@ services:
         sync: false          # paste your Vercel URL here after deploying frontend
       - key: DEBUG
         value: "False"
-      - key: PORT
-        value: "10000"       # Render's default PORT
     healthCheckPath: /health

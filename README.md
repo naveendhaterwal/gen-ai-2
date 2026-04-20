@@ -19,29 +19,7 @@ An enterprise-grade credit risk assessment platform that combines **Machine Lear
 
 ---
 
-## 🏗️ Technical Architecture
 
-```mermaid
-graph TD
-    A[Borrower Form] -->|GraphQL/REST| B[FastAPI Gateway]
-    B --> C[LangGraph Orchestrator]
-    
-    subgraph "Intelligent Agents"
-        C --> D[Input Processor]
-        D --> E[ML Prediction Node]
-        E --> F[Risk Analysis Agent]
-        F --> G[Policy Retrieval Agent]
-        G --> H[Decision Agent]
-    end
-    
-    F -->|LLM Call| I[(Groq Cloud)]
-    G -->|Vector Search| J[(Qdrant DB)]
-    E -->|Predict| K[Scikit-Learn Model]
-    H -->|Final Decision| B
-    B -->|Response| A
-```
-
----
 
 ## 🛠️ Technology Stack
 
