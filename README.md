@@ -20,7 +20,6 @@ An enterprise-grade credit risk assessment platform that combines **Machine Lear
 ---
 
 
-
 ## 🛠️ Technology Stack
 
 - **Frontend**: Next.js 14, Tailwind CSS, Framer Motion, Lucide Icons.
