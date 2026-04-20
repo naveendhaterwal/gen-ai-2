@@ -116,3 +116,33 @@ export async function getReport(requestId: string): Promise<PredictionResponse> 
   }
   return response.json();
 }
+
+export interface ChatRequest {
+  request_id: string;
+  message: string;
+}
+
+export interface ChatResponse {
+  answer: string;
+  model_source: string;
+}
+
+export async function chatWithReport(data: ChatRequest): Promise<ChatResponse> {
+  const response = await fetch(`${API_BASE_URL}/report/${data.request_id}/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message: data.message }),
+  });
+
+  if (!response.ok) {
+    if (response.status === 404 || response.status === 405) {
+      return {
+        answer: "Chat endpoint is currently under development.",
+        model_source: "fallback"
+      };
+    }
+    throw new Error("Failed to connect to AI chat");
+  }
+
+  return response.json();
+}
