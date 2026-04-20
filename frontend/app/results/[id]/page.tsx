@@ -3,7 +3,8 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { PredictionResponse, getReport } from "@/lib/api";
-import ResultsDashboard from "@/components/ResultsDashboard";
+import ResultsDashboard, { PolicyAudit } from "@/components/ResultsDashboard";
+import AIPolicySidebar from "@/components/AIPolicySidebar";
 import WorkflowTrace from "@/components/WorkflowTrace";
 import ViewToggle from "@/components/ViewToggle";
 import Loader from "@/components/Loader";
@@ -51,7 +52,8 @@ export default function ResultsPage() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-black px-6 relative">
         <div className="fixed inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(59,130,246,0.05),transparent_50%)] pointer-events-none" />
-        <div className="max-w-md w-full glass p-10 border-red-500/20 rounded-[2.5rem] text-center relative z-10">
+        <div className="w-full space-y-8 pb-20">
+          <div className="max-w-md w-full glass p-10 border-red-500/20 rounded-[2.5rem] text-center relative z-10 mx-auto">
             <div className="w-16 h-16 bg-red-500/10 text-red-500 rounded-2xl flex items-center justify-center mx-auto mb-6">
                 <AlertCircle className="w-8 h-8" />
             </div>
@@ -64,6 +66,7 @@ export default function ResultsPage() {
             <ChevronLeft className="w-4 h-4" />
             Back to Assessment
           </button>
+          </div>
         </div>
       </div>
     );
@@ -74,7 +77,7 @@ export default function ResultsPage() {
       {/* Background Decor */}
       <div className="fixed inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(59,130,246,0.02),transparent_70%)] pointer-events-none" />
       
-      <div className="container mx-auto relative z-10">
+    <div className="max-w-[1400px] mx-auto relative z-10">
         <motion.div 
           initial={{ y: -20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
@@ -120,9 +123,13 @@ export default function ResultsPage() {
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 20 }}
-                transition={{ duration: 0.3 }}
+                className="flex flex-col gap-8"
               >
-                <ResultsDashboard data={result} />
+                <div className="grid lg:grid-cols-[1fr_400px] gap-8 items-stretch">
+                  <ResultsDashboard data={result} />
+                  <AIPolicySidebar data={result} />
+                </div>
+                <PolicyAudit policies={result.policy_retrieval.policies_matched} />
               </motion.div>
             ) : (
               <motion.div

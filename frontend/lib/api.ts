@@ -135,12 +135,6 @@ export async function chatWithReport(data: ChatRequest): Promise<ChatResponse> {
   });
 
   if (!response.ok) {
-    if (response.status === 404 || response.status === 405) {
-      return {
-        answer: "Chat endpoint is currently under development.",
-        model_source: "fallback"
-      };
-    }
     throw new Error("Failed to connect to AI chat");
   }
 

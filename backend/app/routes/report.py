@@ -5,9 +5,14 @@ Generate and retrieve structured lending reports.
 
 from fastapi import APIRouter, HTTPException
 
+from pydantic import BaseModel
 from app.graph.workflow import run_credit_risk_workflow
 from app.schemas.borrower import BorrowerInput
 from app.services.report_service import report_service
+from app.services.groq_service import chat_agent
+
+class ChatRequest(BaseModel):
+    message: str
 
 
 router = APIRouter(prefix="/report", tags=["Reports"])
@@ -38,3 +43,13 @@ async def get_report(request_id: str):
 	if not report:
 		raise HTTPException(status_code=404, detail="Report not found")
 	return report
+
+@router.post("/{request_id}/chat")
+async def chat_with_report(request_id: str, chat_request: ChatRequest):
+	"""Chat with the AI about a specific report."""
+	report = report_service.get_report(request_id)
+	if not report:
+		raise HTTPException(status_code=404, detail="Report not found")
+		
+	response = chat_agent.chat(report, chat_request.message)
+	return response

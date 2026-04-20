@@ -380,7 +380,44 @@ Provide the final decision as a JSON object."""
             return fallback_result, interaction
 
 
+class ChatAgent:
+    """Agent for interactive chat about a credit report"""
+    
+    def __init__(self, groq_service: GroqService):
+        self.groq = groq_service
+        
+    def chat(self, report_data: dict, user_message: str) -> dict:
+        # Filter report data to stay under token limits
+        essential_data = {
+            "borrower_name": report_data.get("borrower_name"),
+            "risk_analysis": report_data.get("risk_analysis"),
+            "policy_matches": report_data.get("policy_retrieval", {}).get("policies_matched", []),
+            "lending_decision": report_data.get("lending_decision"),
+            "financials": {
+                "foir": report_data.get("foir"),
+                "dti": report_data.get("dti"),
+                "proposed_emi": report_data.get("proposed_emi")
+            }
+        }
+        
+        system_prompt = f"""You are a helpful credit risk advisor. 
+Discuss this loan decision based ONLY on this data:
+{json.dumps(essential_data, indent=2)}
+
+Answer concisely and professionally."""
+
+        try:
+            response = self.groq.call_llm(user_message, system_prompt, temperature=0.3, max_tokens=1000)
+            return {"answer": response, "model_source": "groq"}
+        except Exception as exc:
+            # Check if it's a rate limit / token limit error to provide a better message
+            error_msg = str(exc)
+            if "Limit 6000" in error_msg or "tokens" in error_msg:
+                return {"answer": "The report is too large for the current AI model limit. Please try a shorter question or contact support.", "model_source": "error"}
+            return {"answer": f"I'm sorry, I cannot analyze the report right now.", "model_source": "fallback"}
+
 # Global instances
 groq_service = GroqService()
 risk_agent = RiskAnalysisAgent(groq_service)
 decision_agent = LendingDecisionAgent(groq_service)
+chat_agent = ChatAgent(groq_service)
