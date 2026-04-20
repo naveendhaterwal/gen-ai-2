@@ -20,4 +20,6 @@ services:
         sync: false          # paste your Vercel URL here after deploying frontend
       - key: DEBUG
         value: "False"
+      - key: GUNICORN_CMD_ARGS
+        value: "--bind 0.0.0.0:$PORT --timeout 120"
     healthCheckPath: /health
