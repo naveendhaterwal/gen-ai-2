@@ -1,14 +1,16 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // In local development, proxy /_/backend/* → http://localhost:8000/*
-  // This mirrors how Vercel routes the backend in production
+  // In local dev, proxy /api/* → http://localhost:8000/api/*
+  // So you can call /api/... without CORS issues during development
   async rewrites() {
-    return [
-      {
-        source: "/_/backend/:path*",
-        destination: "http://localhost:8000/:path*",
-      },
-    ];
+    return process.env.NODE_ENV === "development"
+      ? [
+          {
+            source: "/api/:path*",
+            destination: "http://localhost:8000/api/:path*",
+          },
+        ]
+      : [];
   },
 };
 
