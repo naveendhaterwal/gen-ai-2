@@ -1,7 +1,4 @@
-"""
-Configuration settings for the Credit Risk AI Backend.
-Load environment variables and manage app-wide settings.
-"""
+
 
 from pydantic_settings import BaseSettings
 from pydantic_settings import SettingsConfigDict
