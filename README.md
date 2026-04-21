@@ -25,7 +25,7 @@
 
 ---
 
-## 🛠️ Technology Stack
+##  Technology Stack
 
 ### Frontend
 - **Next.js 14** (App Router)
