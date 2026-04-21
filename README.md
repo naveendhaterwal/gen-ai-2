@@ -24,7 +24,7 @@
 | **Premium UI/UX** | Responsive dark-mode dashboard with glassmorphism, Framer Motion animations, and a clean two-column layout |
 
 ---
-
+dd
 ##  Technology Stack
 
 ### Frontend
