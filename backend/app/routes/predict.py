@@ -96,11 +96,13 @@ async def predict_risk(borrower_input: BorrowerInput) -> PredictionResponse:
             confidence_score = float(workflow_state.ml_confidence)
 
         risk_analysis = RiskAnalysisResponse(
-            risk_level=workflow_state.ml_risk_level,
+            risk_level=workflow_state.final_risk_level or workflow_state.ml_risk_level,
             risk_score=workflow_state.ml_risk_score,
             top_risk_factors=top_risk_factors,
             positive_factors=positive_factors,
-            confidence_score=max(0.0, min(1.0, confidence_score))
+            confidence_score=max(0.0, min(1.0, confidence_score)),
+            final_ai_score=workflow_state.final_ai_score,
+            ai_score_reasoning=workflow_state.ai_score_reasoning
         )
         
         # Policy Retrieval Response

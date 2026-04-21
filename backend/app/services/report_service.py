@@ -11,11 +11,16 @@ from typing import Any, Dict
 from app.graph.state import WorkflowState
 
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 class ReportService:
 	"""Service for building and retrieving structured borrower reports."""
 
 	def __init__(self) -> None:
 		self._cache: Dict[str, Dict[str, Any]] = {}
+		logger.info("🆕 ReportService initialized with empty cache")
 
 	def build_report(self, state: WorkflowState) -> Dict[str, Any]:
 		"""Build a complete JSON report from workflow state aligned with PredictionResponse schema."""
@@ -38,11 +43,13 @@ class ReportService:
 			"borrower_name": state.borrower_input.full_name if state.borrower_input else "Unknown",
 			"request_id": state.request_id,
 			"risk_analysis": {
-				"risk_level": state.ml_risk_level.value if state.ml_risk_level else "Medium",
+				"risk_level": (state.final_risk_level or state.ml_risk_level).value if (state.final_risk_level or state.ml_risk_level) else "Medium",
 				"risk_score": state.ml_risk_score,
 				"top_risk_factors": risk.get("top_risk_factors", []),
 				"positive_factors": risk.get("positive_factors", []),
 				"confidence_score": state.ml_confidence,
+				"final_ai_score": state.final_ai_score,
+				"ai_score_reasoning": state.ai_score_reasoning,
 			},
 			"policy_retrieval": {
 				"rules_checked": len(state.policy_matches),
@@ -70,10 +77,16 @@ class ReportService:
 		request_id = report.get("request_id")
 		if request_id:
 			self._cache[request_id] = report
+			logger.info(f"💾 Report saved to cache for ID: {request_id}")
 
 	def get_report(self, request_id: str) -> Dict[str, Any] | None:
 		"""Retrieve cached report by request id."""
-		return self._cache.get(request_id)
+		report = self._cache.get(request_id)
+		if report:
+			logger.info(f"🔍 Report retrieved from cache for ID: {request_id}")
+		else:
+			logger.warning(f"⚠️ Report NOT found in cache for ID: {request_id}")
+		return report
 
 
 report_service = ReportService()

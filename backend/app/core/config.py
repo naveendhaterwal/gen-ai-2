@@ -7,8 +7,18 @@ from typing import Optional
 from pathlib import Path
 
 
-BASE_DIR = Path(__file__).resolve().parents[2]
-ENV_FILE_PATH = BASE_DIR / ".env"
+import os
+from dotenv import load_dotenv
+
+BASE_DIR = Path(__file__).resolve().parents[3]
+ENV_FILE_PATH = BASE_DIR / "backend" / ".env"
+
+# Explicitly load .env into environment
+if ENV_FILE_PATH.exists():
+    load_dotenv(str(ENV_FILE_PATH), override=True)
+else:
+    # Try current directory as fallback
+    load_dotenv(override=True)
 
 
 class Settings(BaseSettings):
@@ -20,19 +30,19 @@ class Settings(BaseSettings):
     # App Info
     APP_NAME: str = "Credit Risk AI Backend"
     APP_VERSION: str = "1.0.0"
-    DEBUG: bool = False
+    DEBUG: bool = os.getenv("DEBUG", "False").lower() == "true"
     
     # Server
     HOST: str = "0.0.0.0"
     PORT: int = 8000
     
     # API Keys & External Services
-    GROQ_API_KEY: Optional[str] = None
+    GROQ_API_KEY: Optional[str] = os.getenv("GROQ_API_KEY")
     GROQ_MODEL: str = "llama-3.1-8b-instant"
-    QDRANT_API_KEY: Optional[str] = None
+    QDRANT_API_KEY: Optional[str] = os.getenv("QDRANT_API_KEY")
     
     # Qdrant Vector DB
-    QDRANT_URL: str = "http://localhost:6333"
+    QDRANT_URL: str = os.getenv("QDRANT_URL", "http://localhost:6333")
     QDRANT_COLLECTION: str = "lending_policies"
     
     # ML Model Paths
@@ -41,7 +51,7 @@ class Settings(BaseSettings):
 
     # Runtime behavior
     # When enabled, backend will fail requests instead of returning deterministic/mock fallback outputs.
-    STRICT_NO_FALLBACKS: bool = True
+    STRICT_NO_FALLBACKS: bool = os.getenv("STRICT_NO_FALLBACKS", "False").lower() == "true"
     
     # CORS (comma-separated in .env)
     CORS_ORIGINS: str = "http://localhost:3000,http://localhost:3001"

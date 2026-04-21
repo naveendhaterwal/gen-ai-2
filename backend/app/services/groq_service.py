@@ -288,8 +288,12 @@ Do not nest these keys inside another object."""
         
         user_prompt = f"""
 Make a lending decision for:
-Risk Factors: {json.dumps(risk_analysis.get('top_risk_factors', []))}
-Positive Factors: {json.dumps(risk_analysis.get('positive_factors', []))}
+AI Refined Risk Score: {risk_analysis.get('ai_refined_score', 'N/A')}
+AI Scoring Reasoning: {risk_analysis.get('ai_reasoning', 'N/A')}
+
+Positive Factors (Strengths): {json.dumps(risk_analysis.get('positive_factors', []))}
+Risk Factors (Weaknesses): {json.dumps(risk_analysis.get('top_risk_factors', []))}
+
 FOIR: {borrower_data.get('foir')}
 DTI: {borrower_data.get('dti')}
 Credit Score: {borrower_data.get('credit_score')}
@@ -416,8 +420,92 @@ Answer concisely and professionally."""
                 return {"answer": "The report is too large for the current AI model limit. Please try a shorter question or contact support.", "model_source": "error"}
             return {"answer": f"I'm sorry, I cannot analyze the report right now.", "model_source": "fallback"}
 
+class AIScoringAgent:
+    """Agent for synthesizing final risk score based on ML, policies, and strengths"""
+    
+    def __init__(self, groq_service: GroqService):
+        self.groq = groq_service
+        
+    def evaluate(
+        self, 
+        ml_score: float, 
+        ml_level: str,
+        risk_analysis: dict,
+        policy_matches: list,
+        borrower_data: dict
+    ) -> dict:
+        """
+        Produce a final AI-synthesized risk score.
+        
+        Returns dict with final_score (0-100) and reasoning.
+        """
+        
+        system_prompt = """You are a senior credit risk evaluator.
+Your task is to provide the FINAL risk score for a loan applicant.
+You must take the baseline Machine Learning (ML) score and refine it using:
+1. Company lending policies (retrieved as chunks).
+2. Qualitative strengths and weaknesses.
+3. Financial ratios (FOIR, DTI).
+
+The ML score is a mathematical baseline, but your AI score is the final human-like judgment that considers policy nuances.
+
+CRITICAL: If there are policy violations (e.g., FOIR > 50% for salaried), you MUST increase the risk score significantly (at least 60-70 or higher), even if the ML baseline is low. Never return 0.0 if there are active weaknesses or policy failures.
+
+Format your response as a flat JSON object with these EXACT keys:
+- "final_score": (Float between 0 and 100, where 0 is safest and 100 is riskiest)
+- "reasoning": (String, detailed explanation of how the ML score was adjusted based on company policy and borrower profile)
+
+Do not nest these keys."""
+
+        user_prompt = f"""
+ML Baseline Score: {ml_score} ({ml_level})
+Positive strengths: {json.dumps(risk_analysis.get('positive_factors', []))}
+Negative weaknesses: {json.dumps(risk_analysis.get('top_risk_factors', []))}
+
+Company Policy Snippets:
+{json.dumps([p.get('rule_text') for p in policy_matches], indent=2)}
+
+Borrower Ratios:
+- FOIR: {borrower_data.get('foir')}
+- DTI: {borrower_data.get('dti')}
+
+Calculated final risk score based on the above context.
+"""
+
+        try:
+            response = self.groq.call_llm(user_prompt, system_prompt, temperature=0.1)
+            result = self.groq._extract_json(response)
+            
+            # Normalization
+            final_score = result.get("final_score", ml_score)
+            reasoning = result.get("reasoning", "Score determined by AI synthesis of ML and policy context.")
+            
+            interaction = {
+                "agent": "AI Scoring Agent",
+                "system_prompt": system_prompt,
+                "prompt": user_prompt,
+                "response": response
+            }
+            return {"final_score": final_score, "reasoning": reasoning}, interaction
+            
+        except Exception as exc:
+            logger.error(f"Error in AI Scoring Agent: {exc}")
+            # Fallback to ML score
+            fallback_result = {
+                "final_score": ml_score,
+                "reasoning": f"AI Scoring failed, falling back to ML baseline. Error: {str(exc)}"
+            }
+            interaction = {
+                "agent": "AI Scoring Agent",
+                "error": str(exc),
+                "response": "Fallback to ML score"
+            }
+            return fallback_result, interaction
+
+
 # Global instances
 groq_service = GroqService()
 risk_agent = RiskAnalysisAgent(groq_service)
+scoring_agent = AIScoringAgent(groq_service)
 decision_agent = LendingDecisionAgent(groq_service)
 chat_agent = ChatAgent(groq_service)

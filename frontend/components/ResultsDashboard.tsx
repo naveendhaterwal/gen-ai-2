@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { 
   ShieldCheck, AlertTriangle, XCircle, Info, 
   ArrowUpRight, ArrowDownRight, CheckCircle2, 
-  ExternalLink, FileText, Scale
+  ExternalLink, FileText, Scale, Bot
 } from "lucide-react";
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, 
@@ -58,15 +58,23 @@ const ResultsDashboard = ({ data }: { data: PredictionResponse }) => {
             <p className="text-lg text-muted-foreground leading-relaxed max-w-2xl">{lending_decision.suggested_action}</p>
           </div>
           
-          <div className="bg-white/5 p-8 rounded-[1.5rem] border border-white/10 flex flex-col items-center justify-center min-w-[180px] text-center">
-            <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Risk Score</div>
-            <div className="text-5xl font-black text-primary tracking-tighter">
-              {risk_analysis.risk_score.toFixed(1)}
-              <span className="text-xl font-normal text-muted-foreground/50">/100</span>
+          <div className="bg-white/5 p-8 rounded-[1.5rem] border border-white/10 flex flex-col items-center justify-center min-w-[200px] text-center shadow-inner group transition-all hover:bg-white/[0.08]">
+            <div className="text-[10px] font-bold text-primary uppercase tracking-[0.2em] mb-3 flex items-center gap-2">
+              <Bot className="w-3 h-3" />
+              AI Refined Score
             </div>
+            <div className="text-5xl font-black text-white tracking-tighter mb-6">
+              {(risk_analysis.final_ai_score ?? risk_analysis.risk_score).toFixed(1)}
+              <span className="text-xl font-normal text-white/30">/100</span>
+            </div>
+
             <div className={cn(
-                "mt-3 text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full",
-                risk_analysis.risk_level.toLowerCase() === "low" ? "bg-green-500/10 text-green-400" : "bg-primary/10 text-primary"
+                "text-[10px] font-bold uppercase tracking-widest px-4 py-1.5 rounded-full border",
+                risk_analysis.risk_level.toLowerCase() === "low" 
+                  ? "bg-green-500/10 text-green-400 border-green-500/20" 
+                  : risk_analysis.risk_level.toLowerCase() === "medium"
+                  ? "bg-yellow-500/10 text-yellow-400 border-yellow-500/20"
+                  : "bg-red-500/10 text-red-400 border-red-500/20"
             )}>
               {risk_analysis.risk_level} Risk
             </div>
@@ -143,6 +151,26 @@ const ResultsDashboard = ({ data }: { data: PredictionResponse }) => {
         </div>
 
 
+        {/* AI Synthesis Reasoning */}
+        {risk_analysis.ai_score_reasoning && (
+          <motion.div 
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            className="glass p-8 rounded-[2rem] border border-primary/20 bg-primary/5 w-full"
+          >
+            <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+              <Bot className="w-5 h-5 text-primary" />
+              AI Score Synthesis
+            </h3>
+            <p className="text-sm text-foreground/80 leading-relaxed italic">
+              "{risk_analysis.ai_score_reasoning}"
+            </p>
+            <div className="mt-4 flex items-center gap-2">
+              <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Adjusted Score:</div>
+              <div className="text-sm font-black text-primary">{(risk_analysis.final_ai_score ?? risk_analysis.risk_score).toFixed(1)} / 100</div>
+            </div>
+          </motion.div>
+        )}
       </div>
     </div>
   );

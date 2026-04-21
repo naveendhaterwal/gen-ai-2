@@ -45,6 +45,16 @@ class RiskAnalysisResponse(BaseModel):
         le=1, 
         description="Confidence of risk assessment (0-1)"
     )
+    final_ai_score: Optional[float] = Field(
+        default=None,
+        ge=0,
+        le=100,
+        description="Final synthesized risk score from AI agent"
+    )
+    ai_score_reasoning: Optional[str] = Field(
+        default=None,
+        description="Detailed reasoning for the final AI score"
+    )
 
 
 class PolicyMatch(BaseModel):

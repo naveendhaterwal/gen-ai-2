@@ -3,6 +3,7 @@ Report Routes
 Generate and retrieve structured lending reports.
 """
 
+import logging
 from fastapi import APIRouter, HTTPException
 
 from pydantic import BaseModel
@@ -11,8 +12,11 @@ from app.schemas.borrower import BorrowerInput
 from app.services.report_service import report_service
 from app.services.groq_service import chat_agent
 
+logger = logging.getLogger(__name__)
+
 class ChatRequest(BaseModel):
     message: str
+    report_data: dict  # Full report sent from frontend — no server-side cache lookup needed
 
 
 router = APIRouter(prefix="/report", tags=["Reports"])
@@ -46,10 +50,17 @@ async def get_report(request_id: str):
 
 @router.post("/{request_id}/chat")
 async def chat_with_report(request_id: str, chat_request: ChatRequest):
-	"""Chat with the AI about a specific report."""
-	report = report_service.get_report(request_id)
-	if not report:
-		raise HTTPException(status_code=404, detail="Report not found")
-		
-	response = chat_agent.chat(report, chat_request.message)
+	"""Chat with the AI about a specific report.
+	
+	The full report is sent from the frontend in the request body,
+	so this endpoint works regardless of which server worker handles the request.
+	"""
+	logger.info(f"💬 Chat request received for report ID: {request_id}")
+	
+	if not chat_request.report_data:
+		logger.error(f"❌ No report_data in request body for ID: {request_id}")
+		raise HTTPException(status_code=400, detail="report_data is required in the request body")
+	
+	logger.info(f"✅ Report data received from frontend. Sending to AI chat agent...")
+	response = chat_agent.chat(chat_request.report_data, chat_request.message)
 	return response

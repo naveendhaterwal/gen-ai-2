@@ -141,12 +141,12 @@ class MLService:
     
     def predict_risk(self, borrower: BorrowerProfile) -> Tuple[str, float, float, Dict[str, Any]]:
         """
-        Predict credit risk using a hybrid model (40% ML + 60% Rule-based).
-        Ensures sensitivity to risk even if the ML model is biased.
+        Predict credit risk using the ML model.
+        Uses a rule-based fallback only if the ML model is unavailable.
         """
         
         try:
-            # 1. Calculate Rule-Based Score (Standard for manual/deterministic logic)
+            # 1. Calculate Rule-Based Score (as a fallback)
             rule_level, rule_score, rule_conf, rule_breakdown = self._predict_fallback(borrower)
             
             # 2. Calculate ML Model Score (if available)
@@ -171,30 +171,26 @@ class MLService:
                         "ml_classes": [int(c) if isinstance(c, (int, np.integer)) else str(c) for c in self.model.classes_]
                     }
 
-            # 3. Blend Scores (Hybrid Model)
+            # 3. Final Score
             if ml_available:
-                # 40% ML weight, 60% Rule weight
-                hybrid_score = (ml_score * 0.4) + (rule_score * 0.6)
-                method = "hybrid_model"
+                risk_score = ml_score
+                method = "ml_scorer"
+                confidence = 0.85
             else:
-                hybrid_score = rule_score
+                risk_score = rule_score
                 method = "rule_based_fallback"
+                confidence = 0.7
 
-            # 4. Final Interpretations
-            risk_score = round(hybrid_score, 2)
             risk_level, _ = self._interpret_prediction(risk_score / 100.0)
             
-            # Use ML confidence if available, else fallback confidence
-            confidence = 0.85 if ml_available else 0.7
-
             score_breakdown = {
                 "method": method,
-                "formula": "risk_score = (ML_score * 0.4) + (Rule_score * 0.6)" if ml_available else "rule_based_fallback",
+                "formula": "risk_score = ML_score" if ml_available else "rule_based_fallback",
                 "risk_score": risk_score,
                 "components": {
-                    "ml_model_contribution": round(ml_score * 0.4, 2) if ml_available else 0,
-                    "rule_engine_contribution": round(rule_score * 0.6 if ml_available else rule_score, 2),
+                    "ml_model_score": ml_score if ml_available else 0,
                     "raw_ml_score": ml_score if ml_available else None,
+                    "rule_engine_score": rule_score if not ml_available else 0,
                     "raw_rule_score": rule_score
                 },
                 "rule_details": rule_breakdown.get("components", {}),
@@ -206,7 +202,7 @@ class MLService:
             return risk_level, risk_score, confidence, score_breakdown
             
         except Exception as e:
-            logger.error(f"Error in hybrid prediction: {str(e)}. Falling back to pure rule-based logic.")
+            logger.error(f"Error in prediction: {str(e)}. Falling back to pure rule-based logic.")
             return self._predict_fallback(borrower)
             
     def _predict_fallback(self, borrower: BorrowerProfile) -> Tuple[str, float, float, Dict[str, Any]]:

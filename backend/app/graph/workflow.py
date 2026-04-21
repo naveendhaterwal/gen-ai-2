@@ -18,7 +18,7 @@ from app.schemas.borrower import BorrowerInput, BorrowerProfile
 from app.schemas.response import RiskLevel
 from app.core.config import settings
 from app.services.ml_service import ml_service
-from app.services.groq_service import groq_service, risk_agent, decision_agent
+from app.services.groq_service import groq_service, risk_agent, scoring_agent, decision_agent
 from app.services.rag_service import rag_service
 
 logger = logging.getLogger(__name__)
@@ -494,6 +494,93 @@ def node_policy_retrieval(state: WorkflowState) -> WorkflowState:
 
 
 # ============================================================================
+# NODE: AI SCORING AGENT
+# ============================================================================
+
+def node_ai_scoring(state: WorkflowState) -> WorkflowState:
+    """
+    Synthesize final score using AI agent.
+    """
+    
+    logger.info("⚖️ Node: AI Scoring Agent")
+    started_at = datetime.utcnow()
+    
+    try:
+        borrower = state.borrower_input
+        borrower_data = {
+            "foir": state.foir,
+            "dti": state.dti,
+            "credit_score": borrower.credit_score,
+            "employment_type": borrower.employment_type
+        }
+        
+        result, interaction = scoring_agent.evaluate(
+            ml_score=state.ml_risk_score,
+            ml_level=state.ml_risk_level.value if state.ml_risk_level else "Unknown",
+            risk_analysis=state.risk_analysis,
+            policy_matches=state.policy_matches,
+            borrower_data=borrower_data
+        )
+        
+        state.final_ai_score = round(float(result.get("final_score", state.ml_risk_score)), 2)
+        state.ai_score_reasoning = result.get("reasoning", "")
+        state.agent_interactions.append(interaction)
+        
+        # Calculate final risk level based on AI score
+        if state.final_ai_score < 30:
+            state.final_risk_level = RiskLevel.LOW
+        elif state.final_ai_score < 60:
+            state.final_risk_level = RiskLevel.MEDIUM
+        else:
+            state.final_risk_level = RiskLevel.HIGH
+            
+        logger.info(f"   Final AI Score: {state.final_ai_score}")
+        logger.info(f"   Final Risk Level: {state.final_risk_level.value}")
+        
+        state.step_completed = "ai_scoring"
+        logger.info("✓ AI scoring complete")
+
+        _append_trace(
+            state,
+            step="ai_scoring",
+            node="AI Scoring Agent",
+            status="completed",
+            started_at=started_at,
+            model=settings.GROQ_MODEL,
+            source="groq",
+            note="AI synthesis of ML score and company policies.",
+            input_data={
+                "ml_score": state.ml_risk_score,
+                "policies_count": len(state.policy_matches)
+            },
+            output_data={
+                "final_ai_score": state.final_ai_score,
+                "reasoning": state.ai_score_reasoning
+            },
+        )
+        
+        return state
+        
+    except Exception as e:
+        logger.error(f"❌ Error in AI scoring: {str(e)}")
+        state.add_error(f"AI scoring failed: {str(e)}")
+        state.step_completed = "ai_scoring_failed"
+        _append_trace(
+            state,
+            step="ai_scoring",
+            node="AI Scoring Agent",
+            status="failed",
+            started_at=started_at,
+            model=settings.GROQ_MODEL,
+            source="groq",
+            note=str(e),
+            input_data={},
+            output_data={"error": str(e)},
+        )
+        return state
+
+
+# ============================================================================
 # NODE: LENDING DECISION
 # ============================================================================
 
@@ -523,7 +610,11 @@ def node_lending_decision(state: WorkflowState) -> WorkflowState:
         
         # Call decision agent
         decision, interaction = decision_agent.decide(
-            risk_analysis=state.risk_analysis,
+            risk_analysis={
+                **state.risk_analysis,
+                "ai_refined_score": state.final_ai_score,
+                "ai_reasoning": state.ai_score_reasoning
+            },
             policy_matches=state.policy_matches,
             borrower_data=borrower_data
         )
@@ -547,7 +638,11 @@ def node_lending_decision(state: WorkflowState) -> WorkflowState:
             source=str(decision.get("agent_source", "unknown")),
             note="Final recommendation generated from risk and policy context.",
             input_data={
-                "risk_analysis": state.risk_analysis,
+                "risk_analysis": {
+                    **state.risk_analysis,
+                    "ai_refined_score": state.final_ai_score,
+                    "ai_reasoning": state.ai_score_reasoning
+                },
                 "policy_matches": state.policy_matches,
                 "borrower_context": borrower_data,
             },
@@ -599,6 +694,7 @@ def build_workflow():
     workflow.add_node("ml_prediction", node_ml_prediction)
     workflow.add_node("risk_analysis", node_risk_analysis)
     workflow.add_node("policy_retrieval", node_policy_retrieval)
+    workflow.add_node("ai_scoring", node_ai_scoring)
     workflow.add_node("lending_decision", node_lending_decision)
     
     # Set entry point
@@ -608,7 +704,8 @@ def build_workflow():
     workflow.add_edge("input_processing", "ml_prediction")
     workflow.add_edge("ml_prediction", "risk_analysis")
     workflow.add_edge("risk_analysis", "policy_retrieval")
-    workflow.add_edge("policy_retrieval", "lending_decision")
+    workflow.add_edge("policy_retrieval", "ai_scoring")
+    workflow.add_edge("ai_scoring", "lending_decision")
     workflow.add_edge("lending_decision", END)
     
     # Compile

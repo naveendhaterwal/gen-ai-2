@@ -17,6 +17,8 @@ export interface RiskAnalysis {
   top_risk_factors: string[];
   positive_factors: string[];
   confidence_score: number;
+  final_ai_score?: number;
+  ai_score_reasoning?: string;
 }
 
 export interface PolicyMatch {
@@ -120,6 +122,7 @@ export async function getReport(requestId: string): Promise<PredictionResponse> 
 export interface ChatRequest {
   request_id: string;
   message: string;
+  report_data: PredictionResponse;  // Full report sent so backend never needs to look it up
 }
 
 export interface ChatResponse {
@@ -131,12 +134,25 @@ export async function chatWithReport(data: ChatRequest): Promise<ChatResponse> {
   const response = await fetch(`${API_BASE_URL}/report/${data.request_id}/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message: data.message }),
+    body: JSON.stringify({ message: data.message, report_data: data.report_data }),
   });
 
   if (!response.ok) {
-    throw new Error("Failed to connect to AI chat");
+    const errorData = await response.json().catch(() => ({}));
+    const error = new Error(errorData.detail || "Failed to connect to AI chat") as any;
+    error.status = response.status;
+    throw error;
   }
 
   return response.json();
+}
+
+export async function checkBackendHealth(): Promise<boolean> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/predict/health`);
+    return response.ok;
+  } catch (error) {
+    console.error("Backend warm-up failed:", error);
+    return false;
+  }
 }

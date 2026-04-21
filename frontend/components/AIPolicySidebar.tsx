@@ -50,6 +50,7 @@ const AIPolicySidebar = ({ data }: AIPolicySidebarProps) => {
       const response = await chatWithReport({
         request_id: data.request_id,
         message: text,
+        report_data: data,  // ← full report sent with every message
       });
 
       const sourceLabel = response.model_source === "groq" ? "Groq" : "Fallback";
@@ -61,11 +62,21 @@ const AIPolicySidebar = ({ data }: AIPolicySidebarProps) => {
         },
       ]);
     } catch (error: any) {
+      console.error("AI Chat Error:", error);
+      
+      let errorMessage = "Unable to get AI response right now.";
+      
+      if (error?.status === 404) {
+        errorMessage = "The session has expired or the server restarted. Please try again in a few minutes.";
+      } else if (error?.message) {
+        errorMessage = `Error: ${error.message}. Please try again in a few minutes.`;
+      }
+
       setChat((prev) => [
         ...prev,
         {
           role: "assistant",
-          content: error?.message || "Unable to get AI response right now.",
+          content: errorMessage,
         },
       ]);
     } finally {

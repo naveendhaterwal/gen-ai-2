@@ -61,6 +61,12 @@ class WorkflowState:
     policy_violations: int = 0
     policy_compliances: int = 0
     
+    # ========== AI SCORING AGENT OUTPUT ==========
+    # From AI Scoring Agent (LLM)
+    final_ai_score: float = 0.0
+    ai_score_reasoning: str = ""
+    final_risk_level: Optional[RiskLevel] = None
+    
     # ========== DECISION AGENT OUTPUT ==========
     # From Lending Decision Agent (LLM)
     final_decision: Dict[str, Any] = field(default_factory=dict)
@@ -97,6 +103,9 @@ class WorkflowState:
             "score_breakdown": self.score_breakdown,
             "risk_analysis": self.risk_analysis,
             "policy_matches": self.policy_matches,
+            "final_ai_score": self.final_ai_score,
+            "ai_score_reasoning": self.ai_score_reasoning,
+            "final_risk_level": self.final_risk_level.value if self.final_risk_level else None,
             "final_decision": self.final_decision,
             "agent_interactions": self.agent_interactions,
             "workflow_trace": self.workflow_trace,
