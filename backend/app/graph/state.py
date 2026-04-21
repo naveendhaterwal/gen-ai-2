@@ -13,7 +13,7 @@ from app.schemas.response import RiskLevel, RecommendationType
 class WorkflowState:
     """
     Complete state that flows through the LangGraph workflow.
-    Each agent reads from and writes to this state.
+    Each agent reads from and writes to this state
     """
     
     # ========== INPUT ==========
