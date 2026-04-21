@@ -171,13 +171,13 @@ class MLService:
                         "ml_classes": [int(c) if isinstance(c, (int, np.integer)) else str(c) for c in self.model.classes_]
                     }
 
-            # 3. Final Score
+            # 3. Final Score - enforce a minimum risk floor of 1.0
             if ml_available:
-                risk_score = ml_score
+                risk_score = max(1.0, ml_score)
                 method = "ml_scorer"
                 confidence = 0.85
             else:
-                risk_score = rule_score
+                risk_score = max(1.0, rule_score)
                 method = "rule_based_fallback"
                 confidence = 0.7
 
@@ -224,7 +224,7 @@ class MLService:
         employment_bonus = -5 if borrower.employment_type == "Salaried" else 5
         
         total_risk = base_risk + foir_penalty + dti_penalty + employment_bonus
-        total_risk = max(0, min(100, total_risk))
+        total_risk = max(1.0, min(100, total_risk))
         
         risk_level, _ = self._interpret_prediction(total_risk / 100.0)
         
